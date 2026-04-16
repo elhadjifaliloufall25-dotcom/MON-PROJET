@@ -1,4 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const supabase = createClient(
+  'https://chhiiebjwzntnkhgcwae.supabase.co',
+  sb_publishable_FnoE82VwA7gYKhdolBXfWQ_jivbJ8W5
+);
 
 const C = {
   terra:"#C4572A",gold:"#E8A020",green:"#1A7A4A",
