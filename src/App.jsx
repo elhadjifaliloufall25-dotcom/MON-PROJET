@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 /* ── SUPABASE ─────────────────────────────────────────── */
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPA_URL, SUPA_KEY);
 
 async function supaFetch(path, options = {}) {
   const res = await fetch(`${SUPA_URL}/rest/v1/${path}`, {
@@ -21,20 +23,14 @@ async function supaFetch(path, options = {}) {
 }
 
 async function uploadImage(file, phone) {
-  const ext = file.name.split('.').pop();
-  const path = `${phone}/${Date.now()}.${ext}`;
-  const res = await fetch(`${SUPA_URL}/storage/v1/object/produits/${path}`, {
-    method: "POST",
-    headers: {
-      "apikey": SUPA_KEY,
-      "Authorization": `Bearer ${SUPA_KEY}`,
-      "Content-Type": file.type,
-      "x-upsert": "true",
-    },
-    body: file,
-  });
-  if (!res.ok) throw new Error("Upload failed");
-  return `${SUPA_URL}/storage/v1/object/public/produits/${path}`;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const path = `${phone}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage
+    .from("produits")
+    .upload(path, file, { contentType: file.type || "image/jpeg", upsert: true });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from("produits").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 const db = {
@@ -345,7 +341,7 @@ function InscriptionLivreur({ onComplete }) {
 /* ════════════════════════════════════════════════════════
    DASHBOARD VENDEUR
 ════════════════════════════════════════════════════════ */
-function DashboardVendeur({ store, onPreview }) {
+function DashboardVendeur({ store, onPreview, onLogout }) {
   const [tab, setTab] = useState("accueil");
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
@@ -446,6 +442,9 @@ function DashboardVendeur({ store, onPreview }) {
             <div style={{ width: 32, height: 32, borderRadius: 9, background: `${C.terra}28`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏪</div>
             <div><div style={{ fontSize: 12, fontWeight: 700, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{store?.nom}</div><div style={{ fontSize: 10, color: C.green }}>● En ligne</div></div>
           </div>
+          <button onClick={onLogout} style={{ width: "100%", padding: "8px", borderRadius: 9, border: `1px solid ${C.border}`, background: `${C.white}04`, color: `${C.white}45`, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all .2s" }} onMouseEnter={e => { e.target.style.borderColor = "#EF444444"; e.target.style.color = "#EF4444"; }} onMouseLeave={e => { e.target.style.borderColor = C.border; e.target.style.color = `${C.white}45`; }}>
+            ↩ Déconnexion
+          </button>
         </div>
       </div>
     </>
@@ -963,15 +962,29 @@ function DashboardLivreur({ livreur }) {
    APP ROOT
 ════════════════════════════════════════════════════════ */
 export default function App() {
-  const [screen, setScreen] = useState("landing");
-  const [storeData, setStoreData] = useState(null);
+  const saved = (() => { try { const s = localStorage.getItem("jaayma_session"); return s ? JSON.parse(s) : null; } catch { return null; } })();
+  const [screen, setScreen] = useState(saved ? "dashboard-vendeur" : "landing");
+  const [storeData, setStoreData] = useState(saved);
   const [livreurData, setLivreurData] = useState(null);
+
+  function handleVendeurComplete(d) {
+    localStorage.setItem("jaayma_session", JSON.stringify(d));
+    setStoreData(d);
+    setScreen("dashboard-vendeur");
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("jaayma_session");
+    setStoreData(null);
+    setScreen("landing");
+  }
+
   return (
     <>
       {screen === "landing" && <Landing onVendeur={() => setScreen("inscription-vendeur")} onLivreur={() => setScreen("inscription-livreur")} />}
-      {screen === "inscription-vendeur" && <InscriptionVendeur onComplete={d => { setStoreData(d); setScreen("dashboard-vendeur"); }} />}
+      {screen === "inscription-vendeur" && <InscriptionVendeur onComplete={handleVendeurComplete} />}
       {screen === "inscription-livreur" && <InscriptionLivreur onComplete={d => { setLivreurData(d); setScreen("dashboard-livreur"); }} />}
-      {screen === "dashboard-vendeur" && <DashboardVendeur store={storeData} onPreview={() => setScreen("boutique-client")} />}
+      {screen === "dashboard-vendeur" && <DashboardVendeur store={storeData} onPreview={() => setScreen("boutique-client")} onLogout={handleLogout} />}
       {screen === "dashboard-livreur" && <DashboardLivreur livreur={livreurData} />}
       {screen === "boutique-client" && <BoutiqueClient store={storeData} onBack={() => setScreen("dashboard-vendeur")} />}
     </>
