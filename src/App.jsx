@@ -40,6 +40,8 @@ const db = {
   getCommandes: (phone) => supaFetch(`commandes?marchand_phone=eq.${encodeURIComponent(phone)}&order=created_at.desc`),
   addCommande: (c) => supaFetch("commandes", { method: "POST", body: JSON.stringify(c) }),
   updateCommande: (id, u) => supaFetch(`commandes?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(u), prefer: "return=minimal" }),
+  getMarchandByLien: (lien) => supaFetch(`marchands?lien=eq.${encodeURIComponent(lien)}&limit=1`),
+  upsertMarchand: (m) => supaFetch("marchands", { method: "POST", body: JSON.stringify(m), prefer: "resolution=merge-duplicates" }),
 };
 
 /* ── PALETTES ─────────────────────────────────────────── */
@@ -369,6 +371,7 @@ function InscriptionVendeur({ onComplete }) {
       const { code: stored, expires_at } = data[0];
       if (new Date(expires_at) < new Date()) { setErr("Code expiré. Clique sur Renvoyer."); setVerifying(false); return; }
       if (stored !== codeInput) { setErr("Code incorrect. Réessaie."); setVerifying(false); return; }
+      try { await db.upsertMarchand({ phone, nom, lien }); } catch {}
       onComplete({ phone, nom, lien });
     } catch { setErr("Erreur de vérification. Réessaie."); }
     setVerifying(false);
@@ -401,11 +404,11 @@ function InscriptionVendeur({ onComplete }) {
           <div style={{ marginBottom: 6 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, marginBottom: 7, letterSpacing: 1 }}>TON LIEN PERSONNALISÉ</div>
             <div style={{ display: "flex", borderRadius: 12, border: `1px solid ${lienErr ? "#EF4444" : C.border}`, overflow: "hidden", background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(90,143,250,0.04)" }}>
-              <div style={{ padding: "13px 12px", fontSize: 11, color: C.sand, borderRight: `1px solid ${C.border}`, flexShrink: 0, display: "flex", alignItems: "center" }}>jaayma.sn/</div>
+              <div style={{ padding: "13px 12px", fontSize: 11, color: C.sand, borderRight: `1px solid ${C.border}`, flexShrink: 0, display: "flex", alignItems: "center" }}>jaayma.shop/s/</div>
               <input value={lien} onChange={e => hLien(e.target.value)} placeholder="mariama-mode" style={{ flex: 1, padding: "13px 12px", border: "none", outline: "none", fontSize: 13, fontFamily: "'Poppins',sans-serif", color: C.terra, fontWeight: 700, background: "transparent" }} />
             </div>
             {lienErr && <div style={{ fontSize: 11, color: "#EF4444", marginTop: 5 }}>{lienErr}</div>}
-            {lien && !lienErr && <div style={{ fontSize: 11, color: C.green, marginTop: 5 }}>✓ jaayma.sn/{lien}</div>}
+            {lien && !lienErr && <div style={{ fontSize: 11, color: C.green, marginTop: 5 }}>✓ jaayma.shop/s/{lien} ✓</div>}
           </div>
           <div style={{ background: "rgba(90,143,250,0.08)", borderRadius: 11, padding: "10px 14px", marginBottom: 20, marginTop: 14, border: "1px solid rgba(90,143,250,0.2)" }}>
             <div style={{ fontSize: 12, color: C.terra, lineHeight: 1.6 }}>📲 Code envoyé au <strong>+221 {phone || "..."}</strong> par WhatsApp ou SMS</div>
@@ -616,7 +619,22 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
           <>
             {tab === "accueil" && (
               <div>
-                <div style={{ fontSize: 13, color: C.sand, marginBottom: 24 }}>{store?.nom} · jaayma.sn/{store?.lien}</div>
+                <div style={{ background: "rgba(90,143,250,0.08)", borderRadius: 14, padding: "14px 16px", marginBottom: 24, border: "1px solid rgba(90,143,250,0.2)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontSize: 10, color: C.sand, letterSpacing: 1, marginBottom: 4 }}>TON LIEN DE BOUTIQUE</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.terra }}>jaayma.shop/s/{store?.lien}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button onClick={() => { navigator.clipboard.writeText(`https://jaayma.shop/s/${store?.lien}`); st("✅ Lien copié !"); }}
+                      style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(90,143,250,0.3)", background: "rgba(90,143,250,0.1)", color: C.terra, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
+                      📋 Copier
+                    </button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`🛍️ Voici ma boutique en ligne : https://jaayma.shop/s/${store?.lien}`)}`} target="_blank" rel="noreferrer"
+                      style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#25D366,#128C7E)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                      📲 Partager
+                    </a>
+                  </div>
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
                   {[{ label: "Revenus", value: rev.toLocaleString() + " FCFA", icon: "💰", c: C.gold }, { label: "Commandes", value: orders.length, icon: "🛒", c: C.terra }, { label: "Nouvelles", value: nbNew, icon: "🔔", c: "#F59E0B" }, { label: "Produits", value: products.length, icon: "📦", c: C.green }].map((s, i) => (
                     <div key={i} className="ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 16, padding: "18px 16px", border: `1px solid ${C.border}` }}>
@@ -665,7 +683,14 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 16, fontWeight: 800, color: C.gold, marginBottom: 8 }}>{o.montant?.toLocaleString()} FCFA</div>
-                      {(o.status === "nouveau" || o.status === "assigné") && <Btn onClick={() => setSel(o)} style={{ fontSize: 12, padding: "8px 14px" }}>Gérer →</Btn>}
+                      <div style={{ display: "flex", gap: 7, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        {(o.status === "nouveau" || o.status === "assigné") && <Btn onClick={() => setSel(o)} style={{ fontSize: 12, padding: "8px 14px" }}>Gérer →</Btn>}
+                        <a href={`https://wa.me/221${o.client_phone}?text=${encodeURIComponent(`Bonjour ${o.client_nom} ! 👋\nVotre commande (${o.article}) de ${o.montant?.toLocaleString()} FCFA a bien été reçue par ${store?.nom}.\nNous vous contacterons bientôt pour la livraison. Merci ! 🙏`)}`}
+                          target="_blank" rel="noreferrer"
+                          style={{ padding: "8px 12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#25D366,#128C7E)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          📲 WA
+                        </a>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -855,7 +880,7 @@ function BoutiqueClient({ store, onBack }) {
           <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(90,143,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🏪</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 800, fontSize: 16, color: C.white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{store?.nom}</div>
-            <div style={{ fontSize: 10, color: C.sand }}>jaayma.sn/{store?.lien}</div>
+            <div style={{ fontSize: 10, color: C.sand }}>jaayma.shop/s/{store?.lien}</div>
           </div>
           {count > 0 && (
             <button onClick={() => setView("cart")} style={{ background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", border: "none", borderRadius: 12, padding: "7px 14px", cursor: "pointer", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>
@@ -1027,11 +1052,47 @@ function DashboardLivreur({ livreur }) {
 /* ════════════════════════════════════════════════════════
    APP ROOT
 ════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════
+   BOUTIQUE PUBLIQUE (URL /s/lien)
+════════════════════════════════════════════════════════ */
+function BoutiquePublique({ lien }) {
+  const { C } = useTheme();
+  const [store, setStore] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    db.getMarchandByLien(lien)
+      .then(data => { if (data.length) setStore(data[0]); else setNotFound(true); })
+      .catch(() => setNotFound(true));
+  }, [lien]);
+
+  if (notFound) return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", background: C.obsidian, color: C.white, textAlign: "center", padding: 24 }}>
+      <style>{FONTS}{G}</style>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>🔍</div>
+      <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>Boutique introuvable</div>
+      <div style={{ color: C.sand, marginBottom: 24, fontSize: 13 }}>Le lien <strong style={{ color: C.terra }}>/s/{lien}</strong> n'existe pas encore.</div>
+      <a href="/" style={{ color: C.terra, textDecoration: "none", fontSize: 14, fontWeight: 700 }}>← Retour à Jaayma</a>
+    </div>
+  );
+
+  if (!store) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.obsidian }}>
+      <style>{FONTS}{G}</style>
+      <div className="spinner" />
+    </div>
+  );
+
+  return <BoutiqueClient store={store} onBack={() => { window.location.href = "/"; }} />;
+}
+
 export default function App() {
   const savedTheme = (() => { try { return localStorage.getItem("jaayma_theme") || "dark"; } catch { return "dark"; } })();
   const [theme, setTheme] = useState(savedTheme);
   const C = theme === "dark" ? DARK_C : LIGHT_C;
   function toggle() { setTheme(t => { const n = t === "dark" ? "light" : "dark"; localStorage.setItem("jaayma_theme", n); return n; }); }
+
+  const publicMatch = window.location.pathname.match(/^\/s\/([a-z0-9-]+)$/);
 
   const saved = (() => { try { const s = localStorage.getItem("jaayma_session"); return s ? JSON.parse(s) : null; } catch { return null; } })();
   const [screen, setScreen] = useState(saved ? "dashboard-vendeur" : "landing");
@@ -1040,6 +1101,14 @@ export default function App() {
 
   function handleVendeurComplete(d) { localStorage.setItem("jaayma_session", JSON.stringify(d)); setStoreData(d); setScreen("dashboard-vendeur"); }
   function handleLogout() { localStorage.removeItem("jaayma_session"); setStoreData(null); setScreen("landing"); }
+
+  if (publicMatch) {
+    return (
+      <ThemeCtx.Provider value={{ C, theme, toggle }}>
+        <BoutiquePublique lien={publicMatch[1]} />
+      </ThemeCtx.Provider>
+    );
+  }
 
   return (
     <ThemeCtx.Provider value={{ C, theme, toggle }}>
