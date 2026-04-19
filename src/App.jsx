@@ -256,48 +256,153 @@ function Landing({ onVendeur, onLivreur }) {
 }
 
 /* ════════════════════════════════════════════════════════
-   INSCRIPTION VENDEUR
+   INSCRIPTION VENDEUR (avec vérification code)
 ════════════════════════════════════════════════════════ */
 function InscriptionVendeur({ onComplete }) {
-  const [phone, setPhone] = useState(""); const [nom, setNom] = useState(""); const [lien, setLien] = useState(""); const [err, setErr] = useState("");
+  const [step, setStep] = useState("form"); // "form" | "verify"
+  const [phone, setPhone] = useState("");
+  const [nom, setNom] = useState("");
+  const [lien, setLien] = useState("");
+  const [lienErr, setLienErr] = useState("");
+  const [codeInput, setCodeInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [err, setErr] = useState("");
+  const [countdown, setCountdown] = useState(0);
+
   function hNom(v) { setNom(v); setLien(v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")); }
-  function hLien(v) { const c = v.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""); setLien(c); setErr(c.length < 3 ? "Minimum 3 caractères" : ""); }
-  const valid = phone.length >= 9 && nom.length >= 2 && lien.length >= 3;
+  function hLien(v) { const c = v.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""); setLien(c); setLienErr(c.length < 3 ? "Minimum 3 caractères" : ""); }
+  const formValid = phone.length >= 9 && nom.length >= 2 && lien.length >= 3 && !lienErr;
+
+  function startCountdown() {
+    setCountdown(60);
+    const t = setInterval(() => setCountdown(v => { if (v <= 1) { clearInterval(t); return 0; } return v - 1; }), 1000);
+  }
+
+  async function handleSendCode() {
+    if (!formValid) return;
+    setSending(true);
+    setErr("");
+    try {
+      const resp = await fetch("/api/send-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) { setErr(data.error || "Erreur envoi. Réessaie."); setSending(false); return; }
+      setStep("verify");
+      startCountdown();
+    } catch (e) {
+      setErr("Problème de connexion. Réessaie.");
+    }
+    setSending(false);
+  }
+
+  async function handleVerify() {
+    if (codeInput.length !== 6) return;
+    setVerifying(true);
+    setErr("");
+    try {
+      const data = await supaFetch(`verifications?phone=eq.${phone}&select=code,expires_at`);
+      if (!data.length) { setErr("Code introuvable. Renvoie un code."); setVerifying(false); return; }
+      const { code: stored, expires_at } = data[0];
+      if (new Date(expires_at) < new Date()) { setErr("Code expiré. Clique sur Renvoyer."); setVerifying(false); return; }
+      if (stored !== codeInput) { setErr("Code incorrect. Réessaie."); setVerifying(false); return; }
+      onComplete({ phone, nom, lien });
+    } catch (e) {
+      setErr("Erreur de vérification. Réessaie.");
+    }
+    setVerifying(false);
+  }
+
   const inp = { width: "100%", padding: "13px 16px", borderRadius: 12, background: `${C.white}06`, border: `1px solid ${C.border}`, outline: "none", fontSize: 14, fontFamily: "'Outfit',sans-serif", color: C.white, boxSizing: "border-box", transition: "border-color .3s" };
+
   return (
     <div className="page" style={{ fontFamily: "'Outfit',sans-serif", background: C.obsidian, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden" }}>
       <style>{FONTS}{G}</style>
       <div className="orb" style={{ width: 450, height: 450, background: `${C.terra}12`, top: -80, right: -80 }} />
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: C.white, marginBottom: 30 }}>Jaayma<span style={{ color: C.gold }}>.</span></div>
-      <div style={{ background: `linear-gradient(135deg,${C.charcoal},${C.ember})`, borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440, border: `1px solid ${C.border}`, boxShadow: `0 40px 80px rgba(0,0,0,.5)`, animation: "scaleIn .5s ease both" }}>
-        <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, color: C.white, marginBottom: 4, fontWeight: 700 }}>Crée ta boutique</h2>
-        <p style={{ color: `${C.white}45`, fontSize: 13, marginBottom: 28 }}>3 informations, c'est tout. 🚀</p>
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>NUMÉRO WHATSAPP</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ padding: "13px 14px", borderRadius: 12, background: `${C.white}08`, border: `1px solid ${C.border}`, fontSize: 13, color: `${C.white}60`, flexShrink: 0 }}>🇸🇳 +221</div>
-            <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ""))} placeholder="77 000 00 00" type="tel" maxLength={9} style={{ ...inp, flex: 1 }} onFocus={e => e.target.style.borderColor = C.terra} onBlur={e => e.target.style.borderColor = C.border} />
+
+      {/* ÉTAPE 1 — FORMULAIRE */}
+      {step === "form" && (
+        <div style={{ background: `linear-gradient(135deg,${C.charcoal},${C.ember})`, borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440, border: `1px solid ${C.border}`, boxShadow: `0 40px 80px rgba(0,0,0,.5)`, animation: "scaleIn .5s ease both" }}>
+          <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, color: C.white, marginBottom: 4, fontWeight: 700 }}>Crée ta boutique</h2>
+          <p style={{ color: `${C.white}45`, fontSize: 13, marginBottom: 28 }}>3 informations, c'est tout. 🚀</p>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>NUMÉRO WHATSAPP / SMS</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ padding: "13px 14px", borderRadius: 12, background: `${C.white}08`, border: `1px solid ${C.border}`, fontSize: 13, color: `${C.white}60`, flexShrink: 0 }}>🇸🇳 +221</div>
+              <input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ""))} placeholder="77 000 00 00" type="tel" maxLength={9} style={{ ...inp, flex: 1 }} onFocus={e => e.target.style.borderColor = C.terra} onBlur={e => e.target.style.borderColor = C.border} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>NOM DE TA BOUTIQUE</div>
+            <input value={nom} onChange={e => hNom(e.target.value)} placeholder="Ex : Mariama Mode..." style={inp} onFocus={e => e.target.style.borderColor = C.terra} onBlur={e => e.target.style.borderColor = C.border} />
+          </div>
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>TON LIEN PERSONNALISÉ</div>
+            <div style={{ display: "flex", borderRadius: 12, border: `1px solid ${lienErr ? C.terra : C.border}`, overflow: "hidden", background: `${C.white}06` }}>
+              <div style={{ padding: "13px 12px", background: `${C.white}05`, fontSize: 11, color: `${C.white}35`, borderRight: `1px solid ${C.border}`, flexShrink: 0, display: "flex", alignItems: "center" }}>jaayma.sn/</div>
+              <input value={lien} onChange={e => hLien(e.target.value)} placeholder="mariama-mode" style={{ flex: 1, padding: "13px 12px", border: "none", outline: "none", fontSize: 13, fontFamily: "'Outfit',sans-serif", color: C.gold, fontWeight: 700, background: "transparent" }} />
+            </div>
+            {lienErr && <div style={{ fontSize: 11, color: C.terra, marginTop: 5 }}>{lienErr}</div>}
+            {lien && !lienErr && <div style={{ fontSize: 11, color: C.green, marginTop: 5 }}>✓ jaayma.sn/{lien}</div>}
+          </div>
+          <div style={{ background: `${C.gold}0D`, borderRadius: 11, padding: "10px 14px", marginBottom: 20, marginTop: 14, border: `1px solid ${C.gold}20` }}>
+            <div style={{ fontSize: 12, color: `${C.gold}CC`, lineHeight: 1.6 }}>📲 Un code de confirmation sera envoyé au <strong>+221 {phone || "..."}</strong> par WhatsApp ou SMS</div>
+          </div>
+          {err && <div style={{ fontSize: 12, color: C.terra, marginBottom: 12, padding: "10px 14px", background: `${C.terra}12`, borderRadius: 10 }}>{err}</div>}
+          <Btn onClick={handleSendCode} disabled={!formValid || sending} style={{ width: "100%", justifyContent: "center", fontSize: 14, padding: "14px" }}>
+            {sending ? "⏳ Envoi du code..." : "📲 Recevoir mon code →"}
+          </Btn>
+          <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: `${C.white}28` }}>Gratuit · Pas de carte bancaire requise</div>
+        </div>
+      )}
+
+      {/* ÉTAPE 2 — VÉRIFICATION CODE */}
+      {step === "verify" && (
+        <div style={{ background: `linear-gradient(135deg,${C.charcoal},${C.ember})`, borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440, border: `1px solid ${C.border}`, boxShadow: `0 40px 80px rgba(0,0,0,.5)`, animation: "scaleIn .5s ease both" }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📲</div>
+            <h2 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: C.white, fontWeight: 700, marginBottom: 8 }}>Code envoyé !</h2>
+            <p style={{ fontSize: 13, color: `${C.white}55`, lineHeight: 1.7 }}>
+              Vérifie ton WhatsApp ou tes SMS au<br />
+              <strong style={{ color: C.white }}>+221 {phone}</strong>
+            </p>
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 10, letterSpacing: 1, textAlign: "center" }}>ENTRE LE CODE À 6 CHIFFRES</div>
+            <input
+              value={codeInput}
+              onChange={e => { setCodeInput(e.target.value.replace(/\D/g, "").slice(0, 6)); setErr(""); }}
+              placeholder="000000"
+              type="tel"
+              maxLength={6}
+              style={{ ...inp, fontSize: 28, fontWeight: 700, textAlign: "center", letterSpacing: 12, padding: "16px", color: C.gold }}
+              onFocus={e => e.target.style.borderColor = C.terra}
+              onBlur={e => e.target.style.borderColor = C.border}
+              autoFocus
+            />
+          </div>
+          {err && <div style={{ fontSize: 12, color: C.terra, marginBottom: 14, padding: "10px 14px", background: `${C.terra}12`, borderRadius: 10, textAlign: "center" }}>{err}</div>}
+          <Btn onClick={handleVerify} disabled={codeInput.length !== 6 || verifying} style={{ width: "100%", justifyContent: "center", fontSize: 14, padding: "14px", marginBottom: 14 }}>
+            {verifying ? "⏳ Vérification..." : "✓ Confirmer et créer ma boutique"}
+          </Btn>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button onClick={() => { setStep("form"); setCodeInput(""); setErr(""); }} style={{ background: "none", border: "none", color: `${C.white}40`, fontSize: 12, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+              ← Changer de numéro
+            </button>
+            {countdown > 0 ? (
+              <span style={{ fontSize: 12, color: `${C.white}35` }}>Renvoyer dans {countdown}s</span>
+            ) : (
+              <button onClick={() => { handleSendCode(); }} style={{ background: "none", border: "none", color: C.terra, fontSize: 12, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 700 }}>
+                🔄 Renvoyer le code
+              </button>
+            )}
           </div>
         </div>
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>NOM DE TA BOUTIQUE</div>
-          <input value={nom} onChange={e => hNom(e.target.value)} placeholder="Ex : Mariama Mode..." style={inp} onFocus={e => e.target.style.borderColor = C.terra} onBlur={e => e.target.style.borderColor = C.border} />
-        </div>
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: `${C.white}42`, marginBottom: 7, letterSpacing: 1 }}>TON LIEN PERSONNALISÉ</div>
-          <div style={{ display: "flex", borderRadius: 12, border: `1px solid ${err ? C.terra : C.border}`, overflow: "hidden", background: `${C.white}06` }}>
-            <div style={{ padding: "13px 12px", background: `${C.white}05`, fontSize: 11, color: `${C.white}35`, borderRight: `1px solid ${C.border}`, flexShrink: 0, display: "flex", alignItems: "center" }}>jaayma.sn/</div>
-            <input value={lien} onChange={e => hLien(e.target.value)} placeholder="mariama-mode" style={{ flex: 1, padding: "13px 12px", border: "none", outline: "none", fontSize: 13, fontFamily: "'Outfit',sans-serif", color: C.gold, fontWeight: 700, background: "transparent" }} />
-          </div>
-          {err && <div style={{ fontSize: 11, color: C.terra, marginTop: 5 }}>{err}</div>}
-          {lien && !err && <div style={{ fontSize: 11, color: C.green, marginTop: 5 }}>✓ jaayma.sn/{lien}</div>}
-        </div>
-        <div style={{ background: `${C.green}0E`, borderRadius: 11, padding: "10px 14px", marginBottom: 20, marginTop: 14, border: `1px solid ${C.green}20` }}>
-          <div style={{ fontSize: 12, color: `${C.green}CC`, lineHeight: 1.6 }}>📲 Notifications sur <strong>+221 {phone || "..."}</strong></div>
-        </div>
-        <Btn onClick={() => valid && onComplete({ phone, nom, lien })} disabled={!valid} style={{ width: "100%", justifyContent: "center", fontSize: 14, padding: "14px" }}>🚀 Créer ma boutique →</Btn>
-        <div style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: `${C.white}28` }}>Gratuit · Pas de carte bancaire requise</div>
-      </div>
+      )}
     </div>
   );
 }
