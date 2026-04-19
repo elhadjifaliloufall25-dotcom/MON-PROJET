@@ -1099,6 +1099,10 @@ export default function App() {
   const [storeData, setStoreData] = useState(saved);
   const [livreurData, setLivreurData] = useState(null);
 
+  useEffect(() => {
+    if (saved) { db.upsertMarchand({ phone: saved.phone, nom: saved.nom, lien: saved.lien }).catch(() => {}); }
+  }, []);
+
   function handleVendeurComplete(d) { localStorage.setItem("jaayma_session", JSON.stringify(d)); setStoreData(d); setScreen("dashboard-vendeur"); }
   function handleLogout() { localStorage.removeItem("jaayma_session"); setStoreData(null); setScreen("landing"); }
 
