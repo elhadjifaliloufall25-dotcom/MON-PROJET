@@ -857,7 +857,7 @@ function BoutiqueClient({ store, onBack }) {
   const { C, theme } = useTheme();
   const [products, setProducts] = useState([]); const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState([]); const [view, setView] = useState("store");
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [search, setSearch] = useState("");
   const [form, setForm] = useState({ nom: "", phone: "", adresse: "", payment: "" });
   const [submitting, setSubmitting] = useState(false);
   const marchandPhone = store?.phone || "";
@@ -867,9 +867,11 @@ function BoutiqueClient({ store, onBack }) {
   function addToCart(p, qty = 1) { setCart(prev => { const e = prev.find(i => i.id === p.id); return e ? prev.map(i => i.id === p.id ? { ...i, qty: i.qty + qty } : i) : [...prev, { ...p, qty }]; }); }
   function removeFromCart(id) { setCart(prev => prev.filter(i => i.id !== id)); }
   function updateQty(id, qty) { if (qty < 1) { removeFromCart(id); return; } setCart(prev => prev.map(i => i.id === id ? { ...i, qty } : i)); }
+  function buyNow(p) { addToCart(p); setView("cart"); }
 
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const count = cart.reduce((s, i) => s + i.qty, 0);
+  const filtered = products.filter(p => p.name?.toLowerCase().includes(search.toLowerCase()));
 
   async function confirmerCommande() {
     if (!form.nom || !form.phone || !form.payment) return;
@@ -886,160 +888,241 @@ function BoutiqueClient({ store, onBack }) {
     setSubmitting(false);
   }
 
-  const inp = { width: "100%", padding: "13px 15px", borderRadius: 12, background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(90,143,250,0.05)", border: `1.5px solid ${C.border}`, outline: "none", fontSize: 13, fontFamily: "'Poppins',sans-serif", color: C.white, boxSizing: "border-box", marginBottom: 10, transition: "border-color .3s" };
+  const isDark = theme === "dark";
+  const inp = { width: "100%", padding: "13px 15px", borderRadius: 12, background: isDark ? "rgba(255,255,255,0.05)" : "rgba(90,143,250,0.05)", border: `1.5px solid ${C.border}`, outline: "none", fontSize: 13, fontFamily: "'Poppins',sans-serif", color: C.white, boxSizing: "border-box", marginBottom: 10, transition: "border-color .3s" };
 
-  return (
-    <div className="page" style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", maxWidth: 480, margin: "0 auto", transition: "background 0.35s ease" }}>
-      <style>{FONTS}{G}</style>
-      <div style={{ background: C.charcoal, backdropFilter: "blur(20px)", padding: "16px 16px 0", borderBottom: `1px solid ${C.border}`, position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 11, paddingBottom: 16 }}>
-          <button onClick={onBack} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "7px 12px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", flexShrink: 0 }}>← Retour</button>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(90,143,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🏪</div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: C.white, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{store?.nom}</div>
-            <div style={{ fontSize: 10, color: C.sand }}>jaayma.shop/s/{store?.lien}</div>
+  const bcCss = `
+    .bc-layout{display:flex;gap:24px;max-width:1200px;margin:0 auto;padding:28px 20px}
+    .bc-sidebar{width:220px;flex-shrink:0}
+    .bc-main{flex:1;min-width:0}
+    .bc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .bc-card{background:${C.charcoal};border:1px solid ${C.border};border-radius:16px;overflow:hidden;transition:all .2s;cursor:pointer}
+    .bc-card:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(90,143,250,0.18);border-color:rgba(90,143,250,0.35)}
+    .bc-img{background:${isDark ? "rgba(255,255,255,0.04)" : "#F8F9FF"};display:flex;align-items:center;justify-content:center;height:180px;position:relative;overflow:hidden}
+    .bc-img img{width:100%;height:100%;object-fit:cover}
+    .bc-badge{position:absolute;top:10px;right:10px;background:${isDark ? "rgba(90,143,250,0.25)" : "rgba(90,143,250,0.12)"};color:#5A8FFA;font-size:9px;font-weight:700;padding:3px 9px;border-radius:20px;border:1px solid rgba(90,143,250,0.3);backdrop-filter:blur(8px)}
+    .bc-badge-out{background:rgba(239,68,68,0.15);color:#EF4444;border-color:rgba(239,68,68,0.3)}
+    .bc-info{padding:14px}
+    .bc-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 14px 14px}
+    .bc-btn-ghost{padding:9px 6px;border-radius:10px;border:1.5px solid ${C.border};background:transparent;color:${C.sand};font-size:12px;font-weight:600;cursor:pointer;font-family:'Poppins',sans-serif;transition:all .2s;width:100%}
+    .bc-btn-ghost:hover{border-color:#5A8FFA;color:#5A8FFA}
+    .bc-btn-buy{padding:9px 6px;border-radius:10px;border:none;background:linear-gradient(135deg,#5A8FFA,#2C3B8F);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Poppins',sans-serif;width:100%}
+    @media(max-width:900px){.bc-grid{grid-template-columns:repeat(2,1fr)!important}.bc-sidebar{display:none!important}}
+    @media(max-width:520px){.bc-grid{grid-template-columns:repeat(2,1fr)!important}.bc-layout{padding:16px 12px!important;gap:0!important}.bc-img{height:140px!important}.bc-info{padding:10px!important}.bc-btns{padding:0 10px 10px!important}}
+    @media(max-width:360px){.bc-grid{grid-template-columns:1fr!important}}
+  `;
+
+  /* ── STORE VIEW ────────────────────────────────── */
+  if (view === "store") return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", transition: "background 0.35s ease" }}>
+      <style>{FONTS}{G}{bcCss}</style>
+
+      {/* TOP NAV */}
+      <nav style={{ position: "sticky", top: 0, zIndex: 200, background: isDark ? "rgba(31,31,31,0.95)" : "rgba(240,242,255,0.95)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${C.border}`, padding: "12px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+        <button onClick={onBack} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "7px 13px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", flexShrink: 0 }}>←</button>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏪</div>
+        <div style={{ fontWeight: 800, fontSize: 15, color: C.white, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{store?.nom}</div>
+        <ThemeToggle />
+        {count > 0 && (
+          <button onClick={() => setView("cart")} style={{ background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", border: "none", borderRadius: 10, padding: "8px 16px", cursor: "pointer", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
+            🛒 <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 20, padding: "0 7px", fontSize: 11 }}>{count}</span>
+          </button>
+        )}
+      </nav>
+
+      {/* HERO BANNER */}
+      <div style={{ background: "linear-gradient(135deg,#5A8FFA 0%,#2C3B8F 60%,#1a2240 100%)", padding: "48px 20px 36px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div className="orb" style={{ width: 300, height: 300, background: "rgba(255,255,255,0.06)", top: -80, right: -60, animationDuration: "8s" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ fontSize: "clamp(42px,8vw,80px)", fontWeight: 800, color: "rgba(255,255,255,0.12)", letterSpacing: -2, lineHeight: 1, marginBottom: 4, userSelect: "none" }}>Shop</div>
+          <div style={{ fontSize: "clamp(20px,4vw,32px)", fontWeight: 800, color: "#fff", marginBottom: 6 }}>{store?.nom}</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginBottom: 24 }}>{products.length} produit{products.length > 1 ? "s" : ""} disponible{products.length > 1 ? "s" : ""}</div>
+          <div style={{ display: "flex", maxWidth: 480, margin: "0 auto", gap: 8 }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={`Rechercher dans ${store?.nom}...`}
+              style={{ flex: 1, padding: "12px 18px", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", color: "#fff", fontSize: 13, fontFamily: "'Poppins',sans-serif", outline: "none" }} />
+            <button style={{ padding: "12px 20px", borderRadius: 12, border: "none", background: "#fff", color: "#2C3B8F", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>Chercher</button>
           </div>
-          {count > 0 && (
-            <button onClick={() => setView("cart")} style={{ background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", border: "none", borderRadius: 12, padding: "7px 14px", cursor: "pointer", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0 }}>
-              🛒 {count}
-            </button>
-          )}
         </div>
       </div>
 
-      {selectedProduct && view === "store" && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: C.obsidian, maxWidth: 480, margin: "0 auto", overflow: "auto", animation: "pageIn .3s ease both" }}>
-          <div style={{ position: "sticky", top: 0, background: C.charcoal, backdropFilter: "blur(20px)", padding: "16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setSelectedProduct(null)} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "7px 12px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>← Retour</button>
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{selectedProduct.name}</span>
-          </div>
-          <ProductImage src={selectedProduct.image_url} emoji={selectedProduct.image} size={280} radius={0} />
-          <div style={{ padding: 20 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 6 }}>{selectedProduct.name}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: C.gold, marginBottom: 16 }}>{selectedProduct.price?.toLocaleString()} <span style={{ fontSize: 14 }}>FCFA</span></div>
-            <div style={{ fontSize: 12, color: selectedProduct.stock > 0 ? "#4ADE80" : "#EF4444", fontWeight: 600, marginBottom: 24 }}>
-              {selectedProduct.stock > 0 ? `✓ En stock (${selectedProduct.stock} disponibles)` : "✗ Rupture de stock"}
+      {/* LAYOUT : sidebar + grid */}
+      <div className="bc-layout">
+        {/* SIDEBAR */}
+        <aside className="bc-sidebar">
+          <div style={{ background: C.charcoal, borderRadius: 16, padding: 18, border: `1px solid ${C.border}`, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 14 }}>INFOS BOUTIQUE</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏪</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{store?.nom}</div>
+                <div style={{ fontSize: 10, color: C.green }}>● En ligne</div>
+              </div>
             </div>
-            {selectedProduct.stock > 0 && <Btn onClick={() => { addToCart(selectedProduct); setSelectedProduct(null); }} style={{ width: "100%", justifyContent: "center", fontSize: 15, padding: "16px" }}>Ajouter au panier →</Btn>}
+            <div style={{ fontSize: 11, color: C.sand, marginBottom: 6 }}>📦 {products.length} produit{products.length > 1 ? "s" : ""}</div>
+            <div style={{ fontSize: 11, color: C.sand, marginBottom: 16 }}>💳 Wave · Orange Money · Livraison</div>
+            <a href={`https://wa.me/221${store?.phone}?text=${encodeURIComponent(`Bonjour ! Je visite votre boutique ${store?.nom} sur Jaayma.`)}`} target="_blank" rel="noreferrer"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "9px", borderRadius: 10, background: "linear-gradient(135deg,#25D366,#128C7E)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textDecoration: "none" }}>
+              📲 Contacter
+            </a>
           </div>
-        </div>
-      )}
+          <div style={{ background: C.charcoal, borderRadius: 16, padding: 18, border: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>PAIEMENTS ACCEPTÉS</div>
+            {[["📱", "Wave"], ["🟠", "Orange Money"], ["🚚", "À la livraison"]].map(([ic, lb]) => (
+              <div key={lb} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12, color: C.white }}>
+                <span>{ic}</span><span>{lb}</span>
+              </div>
+            ))}
+          </div>
+        </aside>
 
-      {view === "store" && !selectedProduct && (
-        <div style={{ padding: "16px 14px" }}>
-          {loading ? <Spinner /> : products.length === 0 ? (
-            <div style={{ textAlign: "center", padding: 60, color: C.sand }}>
-              <div style={{ fontSize: 44, marginBottom: 14 }}>🏪</div>
-              <div style={{ fontSize: 14 }}>Cette boutique n'a pas encore de produits.</div>
+        {/* MAIN */}
+        <main className="bc-main">
+          {loading ? <Spinner /> : filtered.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: C.sand }}>
+              <div style={{ fontSize: 48, marginBottom: 14 }}>🔍</div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{search ? "Aucun produit trouvé" : "Aucun produit disponible"}</div>
             </div>
           ) : (
-            <>
-              <div style={{ background: "linear-gradient(135deg,rgba(90,143,250,0.15),rgba(44,59,143,0.1))", borderRadius: 16, padding: "20px 18px", marginBottom: 20, border: "1px solid rgba(90,143,250,0.25)", display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(90,143,250,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🏪</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 18, color: C.white }}>{store?.nom}</div>
-                  <div style={{ fontSize: 12, color: C.sand, marginTop: 2 }}>{products.length} produit{products.length > 1 ? "s" : ""} disponible{products.length > 1 ? "s" : ""}</div>
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {products.map(p => (
-                  <div key={p.id} className="ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 16, overflow: "hidden", border: `1px solid ${C.border}`, cursor: "pointer" }} onClick={() => setSelectedProduct(p)}>
-                    <ProductImage src={p.image_url} emoji={p.image} size={140} radius={0} />
-                    <div style={{ padding: "10px 12px" }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: C.white, marginBottom: 3 }}>{p.name}</div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{p.price?.toLocaleString()} FCFA</div>
+            <div className="bc-grid">
+              {filtered.map(p => (
+                <div key={p.id} className="bc-card">
+                  <div className="bc-img" onClick={() => { addToCart(p); }}>
+                    {p.image_url ? <img src={p.image_url} alt={p.name} onError={e => { e.target.style.display = "none"; }} /> : <span style={{ fontSize: 48 }}>{p.image || "📦"}</span>}
+                    <span className={`bc-badge${p.stock === 0 ? " bc-badge-out" : ""}`}>
+                      {p.stock === 0 ? "Épuisé" : p.stock <= 3 ? `Dernier(s)` : "En stock"}
+                    </span>
+                  </div>
+                  <div className="bc-info">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.white, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: C.gold }}>{p.price?.toLocaleString()} <span style={{ fontSize: 11, fontWeight: 500, color: C.sand }}>FCFA</span></div>
+                  </div>
+                  {p.stock > 0 && (
+                    <div className="bc-btns">
+                      <button className="bc-btn-ghost" onClick={() => addToCart(p)}>+ Panier</button>
+                      <button className="bc-btn-buy" onClick={() => buyNow(p)}>Acheter</button>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </>
+                  )}
+                  {p.stock === 0 && <div style={{ padding: "0 14px 14px", fontSize: 11, color: "#EF4444", fontWeight: 600 }}>✗ Rupture de stock</div>}
+                </div>
+              ))}
+            </div>
           )}
-        </div>
-      )}
+        </main>
+      </div>
 
-      {view === "cart" && (
-        <div style={{ padding: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setView("store")} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "7px 12px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>← Retour</button>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: C.white }}>Mon panier</h3>
-          </div>
-          {cart.map(item => (
-            <div key={item.id} style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 14, marginBottom: 10, border: `1px solid ${C.border}`, display: "flex", overflow: "hidden" }}>
-              <div style={{ width: 80, flexShrink: 0 }}><ProductImage src={item.image_url} emoji={item.image} size={80} radius={0} /></div>
-              <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{item.name}</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: C.gold }}>{(item.price * item.qty).toLocaleString()} FCFA</div>
+      {/* FOOTER */}
+      <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(90,143,250,0.05)", borderTop: `1px solid ${C.border}`, padding: "28px 20px", textAlign: "center", marginTop: 20 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.terra, marginBottom: 6 }}>Jaayma<span style={{ color: C.white }}>.</span></div>
+        <div style={{ fontSize: 11, color: C.sand }}>Boutique propulsée par <a href="/" style={{ color: C.terra, textDecoration: "none", fontWeight: 600 }}>jaayma.shop</a></div>
+      </div>
+    </div>
+  );
+
+  /* ── CART VIEW ─────────────────────────────────── */
+  if (view === "cart") return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh" }}>
+      <style>{FONTS}{G}</style>
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, paddingTop: 16 }}>
+          <button onClick={() => setView("store")} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "8px 14px", color: C.sand, fontSize: 13, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>← Boutique</button>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: C.white }}>Mon panier</h2>
+          <span style={{ marginLeft: "auto", fontSize: 12, color: C.sand }}>{count} article{count > 1 ? "s" : ""}</span>
+        </div>
+        {cart.map(item => (
+          <div key={item.id} style={{ background: C.charcoal, borderRadius: 16, marginBottom: 12, border: `1px solid ${C.border}`, display: "flex", overflow: "hidden", gap: 0 }}>
+            <div style={{ width: 90, flexShrink: 0, background: isDark ? "rgba(255,255,255,0.04)" : "#F8F9FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {item.image_url ? <img src={item.image_url} alt={item.name} style={{ width: 90, height: 90, objectFit: "cover" }} /> : <span style={{ fontSize: 36 }}>{item.image || "📦"}</span>}
+            </div>
+            <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{item.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.gold, marginTop: 4 }}>{(item.price * item.qty).toLocaleString()} FCFA</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between", marginTop: 10 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", background: isDark ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.07)", borderRadius: 9, padding: "4px 10px" }}>
+                  <button onClick={() => updateQty(item.id, item.qty - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: C.white, fontWeight: 800, fontSize: 16, padding: "0 2px" }}>−</button>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.white, minWidth: 20, textAlign: "center" }}>{item.qty}</span>
+                  <button onClick={() => updateQty(item.id, item.qty + 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "#5A8FFA", fontWeight: 800, fontSize: 16, padding: "0 2px" }}>+</button>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <button onClick={() => updateQty(item.id, item.qty - 1)} style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, cursor: "pointer", color: C.white, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>−</button>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, item.qty + 1)} style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", border: "none", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+</button>
-                  </div>
-                  <button onClick={() => removeFromCart(item.id)} style={{ background: "none", border: "none", color: C.sand, cursor: "pointer", fontSize: 13 }}>Suppr.</button>
-                </div>
+                <button onClick={() => removeFromCart(item.id)} style={{ background: "none", border: "none", color: "#EF4444", cursor: "pointer", fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>Supprimer</button>
               </div>
             </div>
-          ))}
-          <div style={{ background: C.charcoal, borderRadius: 14, padding: "16px 18px", marginTop: 8, border: `1px solid ${C.border}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, color: C.sand }}>Total</span>
-              <span style={{ fontSize: 18, fontWeight: 800, color: C.gold }}>{total.toLocaleString()} FCFA</span>
-            </div>
-            <button onClick={() => setView("checkout")} style={{ width: "100%", padding: "14px", borderRadius: 13, border: "none", background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", boxShadow: "0 4px 20px rgba(90,143,250,0.35)" }}>
-              Commander — {total.toLocaleString()} FCFA →
-            </button>
           </div>
-        </div>
-      )}
-
-      {view === "checkout" && (
-        <div style={{ padding: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <button onClick={() => setView("cart")} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "7px 12px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>← Retour</button>
-            <h3 style={{ fontSize: 18, fontWeight: 800, color: C.white }}>Finaliser</h3>
+        ))}
+        <div style={{ background: C.charcoal, borderRadius: 16, padding: "20px", marginTop: 8, border: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 13, color: C.sand }}>
+            <span>Sous-total</span><span>{total.toLocaleString()} FCFA</span>
           </div>
-          <div style={{ background: C.charcoal, borderRadius: 14, padding: "14px 16px", marginBottom: 20, border: `1px solid ${C.border}` }}>
-            {cart.map(i => <div key={i.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "5px 0", borderBottom: `1px solid ${C.border}` }}><span style={{ color: C.sand }}>{i.name} x{i.qty}</span><span style={{ color: C.white, fontWeight: 600 }}>{(i.price * i.qty).toLocaleString()} FCFA</span></div>)}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 14, fontWeight: 800 }}>
-              <span style={{ color: C.sand }}>Total</span><span style={{ color: C.gold }}>{total.toLocaleString()} FCFA</span>
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 16, fontWeight: 800 }}>
+            <span style={{ color: C.white }}>Total</span><span style={{ color: C.gold }}>{total.toLocaleString()} FCFA</span>
           </div>
-          <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} placeholder="Votre nom complet" style={inp} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
-          <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Téléphone WhatsApp" style={inp} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
-          <input value={form.adresse || ""} onChange={e => setForm({ ...form, adresse: e.target.value })} placeholder="Adresse de livraison" style={{ ...inp, marginBottom: 18 }} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, marginBottom: 10, letterSpacing: 1 }}>MODE DE PAIEMENT</div>
-            {["📱 Wave", "🟠 Orange Money", "🚚 Paiement à la livraison"].map(m => (
-              <button key={m} onClick={() => setForm({ ...form, payment: m })} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "13px 15px", marginBottom: 8, borderRadius: 13, border: `1.5px solid ${form.payment === m ? "#5A8FFA" : C.border}`, background: form.payment === m ? "rgba(90,143,250,0.12)" : "transparent", color: form.payment === m ? "#5A8FFA" : C.sand, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textAlign: "left", transition: "all .2s" }}>
-                <span style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${form.payment === m ? "#5A8FFA" : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  {form.payment === m && <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#5A8FFA", display: "block" }} />}
-                </span>
-                {m}
-              </button>
-            ))}
-          </div>
-          <button disabled={!form.nom || !form.phone || !form.payment || submitting} onClick={confirmerCommande}
-            style={{ width: "100%", padding: "15px", borderRadius: 13, border: "none", background: !form.nom || !form.phone || !form.payment ? "rgba(90,143,250,0.15)" : "linear-gradient(135deg,#5A8FFA,#2C3B8F)", color: !form.nom || !form.phone || !form.payment ? C.sand : "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .3s", boxShadow: form.nom && form.phone && form.payment ? "0 4px 20px rgba(90,143,250,0.35)" : "none" }}>
-            {submitting ? "⏳ Enregistrement..." : "✓ Confirmer la commande"}
+          <button onClick={() => setView("checkout")} style={{ width: "100%", padding: "15px", borderRadius: 13, border: "none", background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", boxShadow: "0 4px 20px rgba(90,143,250,0.35)" }}>
+            Commander — {total.toLocaleString()} FCFA →
           </button>
         </div>
-      )}
+      </div>
+    </div>
+  );
 
-      {view === "confirmed" && (
-        <div style={{ padding: 36, textAlign: "center", animation: "scaleIn .5s ease both" }}>
-          <div style={{ fontSize: 64, marginBottom: 16, animation: "float 3s ease-in-out infinite" }}>🎉</div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: C.white, marginBottom: 12 }}>Commande confirmée !</h2>
-          <div style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 18, padding: 20, marginBottom: 22, textAlign: "left", border: `1px solid ${C.border}` }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, marginBottom: 13, letterSpacing: 1 }}>VOUS ALLEZ RECEVOIR</div>
-            {["📲 Un message WhatsApp du vendeur", "🛵 Notification quand le livreur arrive", "✅ Confirmation à la livraison"].map(s => (
-              <div key={s} style={{ fontSize: 13, color: C.sand, marginBottom: 8, display: "flex", gap: 9 }}><span style={{ color: C.green }}>✓</span>{s.split(" ").slice(1).join(" ")}</div>
-            ))}
-          </div>
-          <Btn onClick={() => { setView("store"); setCart([]); setForm({ nom: "", phone: "", adresse: "", payment: "" }); }}>Retour à la boutique</Btn>
+  /* ── CHECKOUT VIEW ─────────────────────────────── */
+  if (view === "checkout") return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh" }}>
+      <style>{FONTS}{G}</style>
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "20px 20px 60px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, paddingTop: 16 }}>
+          <button onClick={() => setView("cart")} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "8px 14px", color: C.sand, fontSize: 13, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>← Panier</button>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: C.white }}>Finaliser la commande</h2>
         </div>
-      )}
+        <div style={{ background: C.charcoal, borderRadius: 16, padding: "16px 18px", marginBottom: 22, border: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>RÉCAPITULATIF</div>
+          {cart.map(i => (
+            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: `1px solid ${C.border}` }}>
+              <span style={{ color: C.sand }}>{i.name} <span style={{ color: C.terra }}>×{i.qty}</span></span>
+              <span style={{ color: C.white, fontWeight: 600 }}>{(i.price * i.qty).toLocaleString()} FCFA</span>
+            </div>
+          ))}
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 15, fontWeight: 800 }}>
+            <span style={{ color: C.sand }}>Total</span><span style={{ color: C.gold }}>{total.toLocaleString()} FCFA</span>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>VOS INFORMATIONS</div>
+        <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} placeholder="Nom complet" style={inp} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
+        <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="Numéro WhatsApp" type="tel" style={inp} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
+        <input value={form.adresse || ""} onChange={e => setForm({ ...form, adresse: e.target.value })} placeholder="Adresse ou indication de lieu" style={{ ...inp, marginBottom: 22 }} onFocus={e => e.target.style.borderColor = "#5A8FFA"} onBlur={e => e.target.style.borderColor = C.border} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>MODE DE PAIEMENT</div>
+        {["📱 Wave", "🟠 Orange Money", "🚚 Paiement à la livraison"].map(m => (
+          <button key={m} onClick={() => setForm({ ...form, payment: m })} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "14px 16px", marginBottom: 10, borderRadius: 13, border: `2px solid ${form.payment === m ? "#5A8FFA" : C.border}`, background: form.payment === m ? "rgba(90,143,250,0.1)" : "transparent", color: form.payment === m ? "#5A8FFA" : C.white, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textAlign: "left", transition: "all .2s" }}>
+            <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${form.payment === m ? "#5A8FFA" : C.border}`, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {form.payment === m && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#5A8FFA", display: "block" }} />}
+            </span>
+            {m}
+          </button>
+        ))}
+        <button disabled={!form.nom || !form.phone || !form.payment || submitting} onClick={confirmerCommande}
+          style={{ width: "100%", marginTop: 8, padding: "16px", borderRadius: 14, border: "none", background: !form.nom || !form.phone || !form.payment ? "rgba(90,143,250,0.18)" : "linear-gradient(135deg,#5A8FFA,#2C3B8F)", color: !form.nom || !form.phone || !form.payment ? C.sand : "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .3s", boxShadow: form.nom && form.phone && form.payment ? "0 4px 24px rgba(90,143,250,0.4)" : "none" }}>
+          {submitting ? "⏳ Traitement..." : "✓ Confirmer la commande"}
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── CONFIRMED VIEW ────────────────────────────── */
+  return (
+    <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <style>{FONTS}{G}</style>
+      <div style={{ maxWidth: 420, width: "100%", textAlign: "center", animation: "scaleIn .5s ease both" }}>
+        <div style={{ fontSize: 72, marginBottom: 20, animation: "float 3s ease-in-out infinite" }}>🎉</div>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: C.white, marginBottom: 8 }}>Commande confirmée !</h2>
+        <p style={{ fontSize: 14, color: C.sand, marginBottom: 28, lineHeight: 1.7 }}>Le vendeur va vous contacter sur WhatsApp pour confirmer la livraison.</p>
+        <div style={{ background: C.charcoal, borderRadius: 18, padding: 20, marginBottom: 28, textAlign: "left", border: `1px solid ${C.border}` }}>
+          {["📲 Message WhatsApp du vendeur bientôt", "🛵 Notification quand le livreur est en route", "✅ Confirmation à la réception"].map(s => (
+            <div key={s} style={{ fontSize: 13, color: C.sand, marginBottom: 10, display: "flex", gap: 10, alignItems: "center" }}>
+              <span style={{ color: C.green, fontSize: 15 }}>✓</span>{s.replace(/^[^\s]+\s/, "")}
+            </div>
+          ))}
+        </div>
+        <Btn onClick={() => { setView("store"); setCart([]); setForm({ nom: "", phone: "", adresse: "", payment: "" }); }} style={{ width: "100%", justifyContent: "center" }}>← Retour à la boutique</Btn>
+      </div>
     </div>
   );
 }
