@@ -99,6 +99,23 @@ body{overflow-x:hidden;font-family:'Poppins',sans-serif}
 .spinner{width:32px;height:32px;border:3px solid rgba(90,143,250,0.15);border-top:3px solid #5A8FFA;border-radius:50%;animation:spin .8s linear infinite}
 .img-upload-zone{border:2px dashed rgba(90,143,250,0.25);border-radius:14px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:rgba(90,143,250,0.04)}
 .img-upload-zone:hover{border-color:#5A8FFA;background:rgba(90,143,250,0.1)}
+@media(max-width:640px){
+  .mob-hide{display:none!important}
+  .nav-inner{gap:8px!important;padding:6px 14px!important}
+  .nav-btn-sm{padding:7px 12px!important;font-size:11px!important}
+  .hero-card{width:100%!important;flex-shrink:1!important;min-width:0!important}
+  .hero-stats{gap:20px!important;padding-top:20px!important;margin-top:28px!important}
+  .hero-stat-num{font-size:22px!important}
+  .price-feat{transform:none!important}
+  .price-grid{gap:12px!important}
+  .cta-inner{padding:36px 22px!important;border-radius:20px!important}
+  .cta-title{font-size:22px!important}
+  .hero-section{padding:100px 5% 60px!important}
+  .hero-gap{gap:32px!important}
+}
+@media(max-width:400px){
+  .mob-hide-xs{display:none!important}
+}
 `;
 
 /* ── HOOKS ────────────────────────────────────────────── */
@@ -142,7 +159,7 @@ function Badge({ status }) {
   return <span style={{ background: s.bg, color: s.c, borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, fontFamily: "'Poppins',sans-serif", border: `1px solid ${s.c}33` }}>{s.l}</span>;
 }
 
-function Btn({ children, onClick, variant = "primary", style = {}, disabled = false }) {
+function Btn({ children, onClick, variant = "primary", style = {}, disabled = false, className = "" }) {
   const { C } = useTheme();
   const base = { border: "none", cursor: disabled ? "default" : "pointer", fontFamily: "'Poppins',sans-serif", fontWeight: 600, borderRadius: 14, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: disabled ? 0.38 : 1, transition: "all 0.2s" };
   const v = {
@@ -151,7 +168,7 @@ function Btn({ children, onClick, variant = "primary", style = {}, disabled = fa
     ghost: { background: "rgba(90,143,250,0.08)", color: C.terra, padding: "12px 24px", fontSize: 14, border: "1px solid rgba(90,143,250,0.25)" },
     blue: { background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", color: "#fff", padding: "13px 28px", fontSize: 14 },
   };
-  return <button onClick={disabled ? undefined : onClick} className="mag" style={{ ...base, ...v[variant], ...style }}>{children}</button>;
+  return <button onClick={disabled ? undefined : onClick} className={`mag ${className}`} style={{ ...base, ...v[variant], ...style }}>{children}</button>;
 }
 
 function Spinner() { return <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><div className="spinner" /></div>; }
@@ -224,21 +241,21 @@ function Landing({ onVendeur, onLivreur }) {
       <style>{FONTS}{G}</style>
 
       {/* NAV */}
-      <nav style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 1100, background: theme === "dark" ? "rgba(31,31,31,0.8)" : "rgba(240,242,255,0.85)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: `1px solid ${C.border}`, borderRadius: 9999, padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.1)", transition: "all 0.4s" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: C.terra }}>Jaayma<span style={{ color: C.white }}>.</span></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <ThemeToggle />
-          <button onClick={onLivreur} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 9999, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: C.gray, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>🛵 Livreur</button>
-          <Btn onClick={onVendeur} style={{ fontSize: 12, padding: "9px 18px" }}>Créer ma boutique</Btn>
+      <nav style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "calc(100% - 24px)", maxWidth: 1100, background: theme === "dark" ? "rgba(31,31,31,0.8)" : "rgba(240,242,255,0.85)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", border: `1px solid ${C.border}`, borderRadius: 9999, padding: "8px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.1)", transition: "all 0.4s" }}>
+        <div style={{ fontSize: 20, fontWeight: 800, color: C.terra, flexShrink: 0 }}>Jaayma<span style={{ color: C.white }}>.</span></div>
+        <div className="nav-inner" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div className="mob-hide"><ThemeToggle /></div>
+          <button onClick={onLivreur} className="mob-hide nav-btn-sm" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 9999, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: C.gray, cursor: "pointer", fontFamily: "'Poppins',sans-serif", whiteSpace: "nowrap" }}>🛵 Livreur</button>
+          <Btn onClick={onVendeur} className="nav-btn-sm" style={{ fontSize: 12, padding: "9px 18px", whiteSpace: "nowrap" }}>Créer ma boutique</Btn>
         </div>
       </nav>
 
       {/* HERO */}
-      <section style={{ minHeight: "100vh", background: "linear-gradient(135deg,#5A8FFA 0%,#2C3B8F 60%,#1a2240 100%)", display: "flex", alignItems: "center", padding: "120px 5% 80px", position: "relative", overflow: "hidden", backgroundSize: "200% 200%", animation: "gradpan 10s ease infinite" }}>
+      <section className="hero-section" style={{ minHeight: "100vh", background: "linear-gradient(135deg,#5A8FFA 0%,#2C3B8F 60%,#1a2240 100%)", display: "flex", alignItems: "center", padding: "120px 5% 80px", position: "relative", overflow: "hidden", backgroundSize: "200% 200%", animation: "gradpan 10s ease infinite" }}>
         <div className="orb" style={{ width: 500, height: 500, background: "rgba(255,255,255,0.06)", top: -120, right: -100 }} />
         <div className="orb" style={{ width: 300, height: 300, background: "rgba(90,143,250,0.2)", bottom: -60, left: "10%", animationDelay: "2s" }} />
-        <div style={{ maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", alignItems: "center", gap: 70, flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 280 }}>
+        <div className="hero-gap" style={{ maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", alignItems: "center", gap: 70, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 260 }}>
             <div style={{ animation: "slideR .8s ease both .1s" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: 9999, padding: "6px 16px", marginBottom: 26, border: "1px solid rgba(255,255,255,0.2)" }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block", animation: "pulse 2s infinite" }} />
@@ -253,13 +270,13 @@ function Landing({ onVendeur, onLivreur }) {
               <button onClick={onVendeur} className="mag" style={{ background: "#fff", color: "#2C3B8F", border: "none", borderRadius: 14, padding: "14px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>🚀 Créer ma boutique — Gratuit</button>
               <button onClick={onLivreur} className="mag" style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.25)", color: "#fff", borderRadius: 14, padding: "14px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>🛵 Espace livreur</button>
             </div>
-            <div style={{ display: "flex", gap: 36, marginTop: 44, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.15)", animation: "fadeUp .9s ease both .8s", flexWrap: "wrap" }}>
+            <div className="hero-stats" style={{ display: "flex", gap: 36, marginTop: 44, paddingTop: 32, borderTop: "1px solid rgba(255,255,255,0.15)", animation: "fadeUp .9s ease both .8s", flexWrap: "wrap" }}>
               {[["2300", "+", "boutiques"], ["98", "%", "satisfaction"], ["0", " FCFA", "pour démarrer"]].map(([n, s, l]) => (
-                <div key={l}><div style={{ fontSize: 30, fontWeight: 800, color: "#fff" }}><AnimNum n={n} />{s}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{l}</div></div>
+                <div key={l}><div className="hero-stat-num" style={{ fontSize: 30, fontWeight: 800, color: "#fff" }}><AnimNum n={n} />{s}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{l}</div></div>
               ))}
             </div>
           </div>
-          <div style={{ width: 340, flexShrink: 0 }}>
+          <div className="hero-card" style={{ width: 340, flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 24, padding: 26, border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 40px 80px rgba(0,0,0,0.3)", animation: "scaleIn 1s ease both .5s" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 20 }}>COMMENT ÇA MARCHE</div>
               {[{ icon: "📸", t: "Ajoute tes produits", s: "Photos réelles depuis ton téléphone" }, { icon: "👤", t: "Client commande", s: "Paie via Wave ou Orange Money" }, { icon: "📲", t: "Tu es notifié", s: "WhatsApp instantané" }, { icon: "🛵", t: "Livraison", s: "Coordonne tes livreurs" }].map((s, i) => (
@@ -298,9 +315,9 @@ function Landing({ onVendeur, onLivreur }) {
           <div className="reveal" style={{ textAlign: "center", marginBottom: 50 }}>
             <h2 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 800, color: C.white }}>Des prix <span className="gs">honnêtes</span></h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, alignItems: "center" }}>
+          <div className="price-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, alignItems: "center" }}>
             {[{ n: "Démarrage", p: "Gratuit", f: ["1 boutique", "10 produits", "Photos produits", "Notifs WhatsApp"], feat: false }, { n: "Commerçant", p: "4 900 FCFA/mois", f: ["Produits illimités", "Photos illimitées", "Wave + Orange Money", "Stats avancées"], feat: true }, { n: "Business", p: "14 900 FCFA/mois", f: ["Multi-boutiques", "API livreurs", "Support prioritaire", "Facturation auto"], feat: false }].map((p, i) => (
-              <div key={i} className="reveal ch" style={{ background: p.feat ? "linear-gradient(160deg,#5A8FFA,#2C3B8F)" : C.charcoal, backdropFilter: "blur(20px)", borderRadius: 20, padding: p.feat ? 28 : 22, border: `1px solid ${p.feat ? "rgba(90,143,250,0.5)" : C.border}`, transform: p.feat ? "scale(1.04)" : "none", position: "relative", overflow: "hidden", transitionDelay: `${i * .09}s` }}>
+              <div key={i} className={`reveal ch${p.feat ? " price-feat" : ""}`} style={{ background: p.feat ? "linear-gradient(160deg,#5A8FFA,#2C3B8F)" : C.charcoal, backdropFilter: "blur(20px)", borderRadius: 20, padding: p.feat ? 28 : 22, border: `1px solid ${p.feat ? "rgba(90,143,250,0.5)" : C.border}`, transform: p.feat ? "scale(1.04)" : "none", position: "relative", overflow: "hidden", transitionDelay: `${i * .09}s` }}>
                 {p.feat && <div style={{ position: "absolute", top: -1, left: "50%", transform: "translateX(-50%)", background: "linear-gradient(90deg,#F59E0B,#FCD34D)", color: "#1F1F1F", fontSize: 9, fontWeight: 800, padding: "3px 14px", borderRadius: "0 0 8px 8px", letterSpacing: 1 }}>★ POPULAIRE</div>}
                 <div style={{ fontSize: 10, fontWeight: 700, color: p.feat ? "rgba(255,255,255,0.7)" : C.sand, letterSpacing: 2, marginBottom: 7 }}>{p.n.toUpperCase()}</div>
                 <div style={{ fontSize: 24, fontWeight: 800, color: p.feat ? "#fff" : C.white, marginBottom: 16 }}>{p.p}</div>
@@ -314,7 +331,7 @@ function Landing({ onVendeur, onLivreur }) {
 
       {/* CTA */}
       <section className="reveal" style={{ padding: "60px 5% 100px", background: C.obsidian, textAlign: "center", transition: "background 0.35s ease" }}>
-        <div style={{ maxWidth: 600, margin: "0 auto", background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", borderRadius: 28, padding: "50px 40px", position: "relative", overflow: "hidden" }}>
+        <div className="cta-inner" style={{ maxWidth: 600, margin: "0 auto", background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", borderRadius: 28, padding: "50px 40px", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.08)", filter: "blur(40px)" }} />
           <div style={{ fontSize: "clamp(22px,4vw,36px)", fontWeight: 800, color: "#fff", marginBottom: 12 }}>Prêt à vendre en ligne ?</div>
           <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 30, lineHeight: 1.8 }}>Rejoins 2 300+ commerçants sénégalais qui font confiance à Jaayma.</p>
