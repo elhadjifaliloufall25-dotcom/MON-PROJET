@@ -46,12 +46,13 @@ const db = {
 
 /* ── PALETTES ─────────────────────────────────────────── */
 const DARK_C = {
-  obsidian: "#1F1F1F", charcoal: "#252525", ember: "#2E2E2E",
-  terra: "#5A8FFA", terr2: "#7AA5FC", secondary: "#2C3B8F",
+  obsidian: "#07111F", charcoal: "rgba(255,255,255,0.06)", ember: "rgba(255,255,255,0.03)",
+  terra: "#4E7FFF", terr2: "#7AA5FC", secondary: "#1A3A8F",
   gold: "#F59E0B", gold2: "#FCD34D",
   green: "#22C55E", white: "#FFFFFF",
-  border: "rgba(255,255,255,0.08)", delivery: "#5A8FFA",
-  sand: "#A4B1CF", gray: "#A4B1CF",
+  border: "rgba(255,255,255,0.1)", delivery: "#4E7FFF",
+  sand: "#8899BB", gray: "#8899BB",
+  navy: "#0D1B35", glow: "rgba(78,127,255,0.35)",
 };
 const LIGHT_C = {
   obsidian: "#F0F2FF", charcoal: "rgba(255,255,255,0.9)", ember: "#FFFFFF",
@@ -74,15 +75,17 @@ const G = `
 html{scroll-behavior:smooth}
 body{overflow-x:hidden;font-family:'Poppins',sans-serif}
 ::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-track{background:#1F1F1F}
-::-webkit-scrollbar-thumb{background:#5A8FFA;border-radius:2px}
+::-webkit-scrollbar-track{background:#07111F}
+::-webkit-scrollbar-thumb{background:#4E7FFF;border-radius:2px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideR{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
 @keyframes shimmer{0%{background-position:-200% center}100%{background-position:200% center}}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(90,143,250,0.55)}70%{box-shadow:0 0 0 10px rgba(90,143,250,0)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(78,127,255,0.55)}70%{box-shadow:0 0 0 10px rgba(78,127,255,0)}}
+@keyframes glow{0%,100%{box-shadow:0 0 20px rgba(78,127,255,0.3)}50%{box-shadow:0 0 40px rgba(78,127,255,0.6)}}
+@keyframes arcSpin{from{stroke-dashoffset:220}to{stroke-dashoffset:0}}
 @keyframes pageIn{from{opacity:0;transform:translateX(40px) scale(0.98)}to{opacity:1;transform:translateX(0) scale(1)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes gradpan{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
@@ -92,7 +95,9 @@ body{overflow-x:hidden;font-family:'Poppins',sans-serif}
 .mag:hover{transform:translateY(-2px) scale(1.02)}
 .mag:active{transform:scale(0.98)}
 .ch{transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}
-.ch:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(90,143,250,0.2)!important;border-color:rgba(90,143,250,0.4)!important}
+.ch:hover{transform:translateY(-4px);box-shadow:0 16px 48px rgba(78,127,255,0.25)!important;border-color:rgba(78,127,255,0.45)!important}
+.glass{background:rgba(255,255,255,0.06)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important;border:1px solid rgba(255,255,255,0.1)!important}
+.glass-dark{background:rgba(13,27,53,0.7)!important;backdrop-filter:blur(24px)!important;-webkit-backdrop-filter:blur(24px)!important;border:1px solid rgba(78,127,255,0.2)!important}
 .gs{background:linear-gradient(90deg,#5A8FFA,#7AA5FC,#A4C4FF,#5A8FFA);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 4s linear infinite}
 .page{animation:pageIn .45s cubic-bezier(.34,.8,.64,1) both}
 .orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;animation:float 6s ease-in-out infinite}
@@ -173,6 +178,23 @@ function Btn({ children, onClick, variant = "primary", style = {}, disabled = fa
 
 function Spinner() { return <div style={{ display: "flex", justifyContent: "center", padding: 48 }}><div className="spinner" /></div>; }
 
+function ProgressCircle({ pct = 60, size = 64, color = "#4E7FFF", bg = "rgba(255,255,255,0.06)", children }) {
+  const r = (size - 8) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <div style={{ position: "relative", width: size, height: size, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={bg} strokeWidth={5} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={5}
+          strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 1s ease" }} />
+      </svg>
+      <div style={{ position: "relative", zIndex: 1, fontSize: 11, fontWeight: 700, color, textAlign: "center" }}>{children}</div>
+    </div>
+  );
+}
+
 function ProductImage({ src, emoji = "📦", size = 200, radius = 12 }) {
   const [err, setErr] = useState(false);
   if (src && !err) return <img src={src} alt="" onError={() => setErr(true)} style={{ width: "100%", height: size, objectFit: "cover", borderRadius: radius, display: "block" }} />;
@@ -251,7 +273,7 @@ function Landing({ onVendeur, onLivreur }) {
       </nav>
 
       {/* HERO */}
-      <section className="hero-section" style={{ minHeight: "100vh", background: "linear-gradient(135deg,#5A8FFA 0%,#2C3B8F 60%,#1a2240 100%)", display: "flex", alignItems: "center", padding: "120px 5% 80px", position: "relative", overflow: "hidden", backgroundSize: "200% 200%", animation: "gradpan 10s ease infinite" }}>
+      <section className="hero-section" style={{ minHeight: "100vh", background: "linear-gradient(160deg,#07111F 0%,#0D1B35 40%,#1A3A8F 80%,#07111F 100%)", display: "flex", alignItems: "center", padding: "120px 5% 80px", position: "relative", overflow: "hidden" }}>
         <div className="orb" style={{ width: 500, height: 500, background: "rgba(255,255,255,0.06)", top: -120, right: -100 }} />
         <div className="orb" style={{ width: 300, height: 300, background: "rgba(90,143,250,0.2)", bottom: -60, left: "10%", animationDelay: "2s" }} />
         <div className="hero-gap" style={{ maxWidth: 1100, margin: "0 auto", width: "100%", display: "flex", alignItems: "center", gap: 70, flexWrap: "wrap" }}>
@@ -277,7 +299,7 @@ function Landing({ onVendeur, onLivreur }) {
             </div>
           </div>
           <div className="hero-card" style={{ width: 340, flexShrink: 0 }}>
-            <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 24, padding: 26, border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 40px 80px rgba(0,0,0,0.3)", animation: "scaleIn 1s ease both .5s" }}>
+            <div style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", borderRadius: 28, padding: 28, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)", animation: "scaleIn 1s ease both .5s" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 20 }}>COMMENT ÇA MARCHE</div>
               {[{ icon: "📸", t: "Ajoute tes produits", s: "Photos réelles depuis ton téléphone" }, { icon: "👤", t: "Client commande", s: "Paie via Wave ou Orange Money" }, { icon: "📲", t: "Tu es notifié", s: "WhatsApp instantané" }, { icon: "🛵", t: "Livraison", s: "Coordonne tes livreurs" }].map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 0", borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.1)" : "none", animation: `slideR .6s ease both ${.7 + i * .12}s` }}>
@@ -291,14 +313,14 @@ function Landing({ onVendeur, onLivreur }) {
       </section>
 
       {/* FEATURES */}
-      <section style={{ padding: "80px 5%", background: C.obsidian, transition: "background 0.35s ease" }}>
+      <section style={{ padding: "80px 5%", background: theme === "dark" ? "#07111F" : C.obsidian, transition: "background 0.35s ease" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div className="reveal" style={{ textAlign: "center", marginBottom: 50 }}>
             <h2 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 800, color: C.white }}>Une plateforme. <span className="gs">Toutes les fonctions.</span></h2>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
             {[{ icon: "📸", t: "Vraies photos", d: "Upload tes photos produits depuis ton téléphone ou PC.", c: "#5A8FFA" }, { icon: "📲", t: "Notifs WhatsApp", d: "Chaque commande arrive direct sur ton WhatsApp.", c: "#22C55E" }, { icon: "💳", t: "Wave & Orange Money", d: "Paiements intégrés en un clic.", c: "#F59E0B" }, { icon: "🛵", t: "Réseau livreurs", d: "Assigne les commandes en temps réel.", c: "#A855F7" }].map((f, i) => (
-              <div key={i} className="reveal ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 20, padding: 24, border: `1px solid ${C.border}`, transitionDelay: `${i * .09}s`, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
+              <div key={i} className="reveal ch glass" style={{ borderRadius: 20, padding: 24, transitionDelay: `${i * .09}s` }}>
                 <div style={{ width: 50, height: 50, borderRadius: 15, background: `${f.c}18`, border: `1.5px solid ${f.c}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16 }}>{f.icon}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.white, marginBottom: 8 }}>{f.t}</div>
                 <div style={{ fontSize: 13, color: C.sand, lineHeight: 1.7 }}>{f.d}</div>
@@ -397,14 +419,15 @@ function InscriptionVendeur({ onComplete }) {
   const inp = { width: "100%", padding: "13px 16px", borderRadius: 12, background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.06)", border: `1px solid ${C.border}`, outline: "none", fontSize: 14, fontFamily: "'Poppins',sans-serif", color: C.white, boxSizing: "border-box", transition: "border-color .3s" };
 
   return (
-    <div className="page" style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden", transition: "background 0.35s ease" }}>
+    <div className="page" style={{ fontFamily: "'Poppins',sans-serif", background: "linear-gradient(160deg,#07111F 0%,#0D1B35 50%,#07111F 100%)", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20, position: "relative", overflow: "hidden" }}>
       <style>{FONTS}{G}</style>
-      <div className="orb" style={{ width: 400, height: 400, background: "rgba(90,143,250,0.12)", top: -80, right: -80 }} />
+      <div className="orb" style={{ width: 500, height: 500, background: "rgba(78,127,255,0.15)", top: -100, right: -100 }} />
+      <div className="orb" style={{ width: 300, height: 300, background: "rgba(78,127,255,0.08)", bottom: -60, left: -60, animationDelay: "3s" }} />
       <div style={{ position: "absolute", top: 20, right: 20 }}><ThemeToggle /></div>
       <div style={{ fontSize: 24, fontWeight: 800, color: C.terra, marginBottom: 30 }}>Jaayma<span style={{ color: C.white }}>.</span></div>
 
       {step === "form" && (
-        <div style={{ background: C.charcoal, backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440, border: `1px solid ${C.border}`, boxShadow: "0 40px 80px rgba(0,0,0,0.15)", animation: "scaleIn .5s ease both" }}>
+        <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", borderRadius: 28, padding: "36px 32px", width: "100%", maxWidth: 440, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)", animation: "scaleIn .5s ease both" }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 4 }}>Crée ta boutique</h2>
           <p style={{ color: C.sand, fontSize: 13, marginBottom: 28 }}>3 informations, c'est tout. 🚀</p>
           <div style={{ marginBottom: 14 }}>
@@ -439,7 +462,7 @@ function InscriptionVendeur({ onComplete }) {
       )}
 
       {step === "verify" && (
-        <div style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 24, padding: "36px 32px", width: "100%", maxWidth: 440, border: `1px solid ${C.border}`, boxShadow: "0 40px 80px rgba(0,0,0,0.15)", animation: "scaleIn .5s ease both" }}>
+        <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", borderRadius: 28, padding: "36px 32px", width: "100%", maxWidth: 440, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)", animation: "scaleIn .5s ease both" }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📲</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 8 }}>Code envoyé !</h2>
@@ -615,7 +638,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
         </div>
       )}
 
-      <div className="desk-sidebar" style={{ width: 220, background: C.charcoal, backdropFilter: "blur(20px)", flexShrink: 0, display: "flex", flexDirection: "column", padding: "24px 0", borderRight: `1px solid ${C.border}` }}>
+      <div className="desk-sidebar" style={{ width: 220, background: "rgba(13,27,53,0.8)", backdropFilter: "blur(24px)", flexShrink: 0, display: "flex", flexDirection: "column", padding: "24px 0", borderRight: "1px solid rgba(78,127,255,0.15)" }}>
         <SidebarContent />
       </div>
 
@@ -636,47 +659,92 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
           <>
             {tab === "accueil" && (
               <div>
-                <div style={{ background: "rgba(90,143,250,0.08)", borderRadius: 14, padding: "14px 16px", marginBottom: 24, border: "1px solid rgba(90,143,250,0.2)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    <div style={{ fontSize: 10, color: C.sand, letterSpacing: 1, marginBottom: 4 }}>TON LIEN DE BOUTIQUE</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: C.terra }}>jaayma.shop/s/{store?.lien}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button onClick={() => { navigator.clipboard.writeText(`https://jaayma.shop/s/${store?.lien}`); st("✅ Lien copié !"); }}
-                      style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid rgba(90,143,250,0.3)", background: "rgba(90,143,250,0.1)", color: C.terra, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
-                      📋 Copier
-                    </button>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`🛍️ Voici ma boutique en ligne : https://jaayma.shop/s/${store?.lien}`)}`} target="_blank" rel="noreferrer"
-                      style={{ padding: "8px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#25D366,#128C7E)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-                      📲 Partager
-                    </a>
+                {/* ── HERO BANNER FitPulse style ── */}
+                <div style={{ borderRadius: 24, overflow: "hidden", marginBottom: 22, position: "relative", minHeight: 160, background: "linear-gradient(135deg,#0D1B35 0%,#1A3A8F 50%,#07111F 100%)" }}>
+                  <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(78,127,255,0.18)", filter: "blur(60px)" }} />
+                  <div style={{ position: "absolute", bottom: -30, left: -20, width: 150, height: 150, borderRadius: "50%", background: "rgba(78,127,255,0.12)", filter: "blur(50px)" }} />
+                  <div style={{ position: "relative", zIndex: 1, padding: "24px 22px" }}>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600, letterSpacing: 1, marginBottom: 6 }}>TABLEAU DE BORD</div>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", marginBottom: 4 }}>Bonjour, {store?.nom?.split(" ")[0]} 👋</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22C55E", display: "inline-block", animation: "pulse 2s infinite" }} />
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>Boutique en ligne · jaayma.shop/s/{store?.lien}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
+                      <button onClick={() => { navigator.clipboard.writeText(`https://jaayma.shop/s/${store?.lien}`); st("✅ Lien copié !"); }}
+                        style={{ padding: "8px 16px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.1)", backdropFilter: "blur(10px)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
+                        📋 Copier le lien
+                      </button>
+                      <a href={`https://wa.me/?text=${encodeURIComponent(`🛍️ Voici ma boutique : https://jaayma.shop/s/${store?.lien}`)}`} target="_blank" rel="noreferrer"
+                        style={{ padding: "8px 16px", borderRadius: 20, border: "none", background: "linear-gradient(135deg,#25D366,#128C7E)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif", textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
+                        📲 Partager
+                      </a>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 24 }}>
-                  {[{ label: "Revenus", value: rev.toLocaleString() + " FCFA", icon: "💰", c: C.gold }, { label: "Commandes", value: orders.length, icon: "🛒", c: C.terra }, { label: "Nouvelles", value: nbNew, icon: "🔔", c: "#F59E0B" }, { label: "Produits", value: products.length, icon: "📦", c: C.green }].map((s, i) => (
-                    <div key={i} className="ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 16, padding: "18px 16px", border: `1px solid ${C.border}` }}>
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>{s.icon}</div>
-                      <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.value}</div>
-                      <div style={{ fontSize: 11, color: C.sand, marginTop: 3 }}>{s.label}</div>
+
+                {/* ── STATS FitPulse style ── */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 2, marginBottom: 12 }}>MES STATISTIQUES</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 22 }}>
+                  {[
+                    { label: "Revenus totaux", value: rev.toLocaleString(), unit: "FCFA", icon: "💰", c: C.gold, pct: Math.min(100, Math.round(rev / 100000 * 100)) || 10 },
+                    { label: "Commandes", value: orders.length, unit: "total", icon: "🛒", c: C.terra, pct: Math.min(100, orders.length * 5) || 5 },
+                    { label: "Nouvelles", value: nbNew, unit: "en attente", icon: "🔔", c: "#F59E0B", pct: nbNew > 0 ? 100 : 0 },
+                    { label: "Produits", value: products.length, unit: "en ligne", icon: "📦", c: C.green, pct: Math.min(100, products.length * 10) || 0 },
+                  ].map((s, i) => (
+                    <div key={i} className="ch glass" style={{ borderRadius: 20, padding: "18px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+                      <ProgressCircle pct={s.pct} size={56} color={s.c}>
+                        <span style={{ fontSize: 16 }}>{s.icon}</span>
+                      </ProgressCircle>
+                      <div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: s.c, lineHeight: 1.1 }}>{s.value}</div>
+                        <div style={{ fontSize: 10, color: C.sand, marginTop: 2 }}>{s.unit}</div>
+                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{s.label}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 11, marginBottom: 24 }}>
-                  {[{ icon: "➕", t: "Ajouter produit", s: "Avec photo réelle", action: () => setTab("produits"), c: C.terra }, { icon: "📋", t: "Voir commandes", s: nbNew > 0 ? `${nbNew} nouvelle(s)` : "Aucune nouvelle", action: () => setTab("commandes"), c: C.gold }, { icon: "👁", t: "Ma boutique", s: "Vue client", action: onPreview, c: C.green }].map((a, i) => (
-                    <div key={i} onClick={a.action} style={{ background: theme === "dark" ? `${a.c}15` : `${a.c}10`, borderRadius: 14, padding: "16px 18px", border: `1px solid ${a.c}25`, cursor: "pointer", transition: "all .2s" }} onMouseEnter={e => e.currentTarget.style.transform = "translateY(-3px)"} onMouseLeave={e => e.currentTarget.style.transform = "none"}>
-                      <div style={{ fontSize: 20, marginBottom: 7 }}>{a.icon}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{a.t}</div>
-                      <div style={{ fontSize: 11, color: C.sand, marginTop: 3 }}>{a.s}</div>
+
+                {/* ── QUICK ACTIONS ── */}
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 2, marginBottom: 12 }}>ACCÈS RAPIDE</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
+                  {[
+                    { icon: "📸", t: "Produit", s: "Ajouter", action: () => setTab("produits"), c: C.terra },
+                    { icon: "🛒", t: "Commandes", s: nbNew > 0 ? `${nbNew} nouv.` : "Voir tout", action: () => setTab("commandes"), c: C.gold },
+                    { icon: "🏪", t: "Boutique", s: "Aperçu", action: onPreview, c: C.green },
+                  ].map((a, i) => (
+                    <div key={i} onClick={a.action}
+                      style={{ borderRadius: 18, padding: "16px 12px", border: `1px solid ${a.c}30`, background: `${a.c}12`, cursor: "pointer", textAlign: "center", transition: "all .2s", backdropFilter: "blur(12px)" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.background = `${a.c}22`; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.background = `${a.c}12`; }}>
+                      <div style={{ fontSize: 22, marginBottom: 6 }}>{a.icon}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: C.white }}>{a.t}</div>
+                      <div style={{ fontSize: 10, color: a.c, marginTop: 2, fontWeight: 600 }}>{a.s}</div>
                     </div>
                   ))}
                 </div>
+
+                {/* ── RECENT ORDERS ── */}
                 {orders.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 2, marginBottom: 12 }}>DERNIÈRES COMMANDES</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 2 }}>DERNIÈRES COMMANDES</div>
+                      <button onClick={() => setTab("commandes")} style={{ background: "none", border: "none", color: C.terra, fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>Voir tout →</button>
+                    </div>
                     {orders.slice(0, 3).map(o => (
-                      <div key={o.id} className="ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 14, padding: "14px 16px", border: `1px solid ${C.border}`, marginBottom: 9, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer" }} onClick={() => { setTab("commandes"); setSel(o); }}>
-                        <div><div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}><span style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{o.client_nom}</span><Badge status={o.status} /></div><div style={{ fontSize: 12, color: C.sand }}>{o.article}</div></div>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{o.montant?.toLocaleString()} FCFA</div>
+                      <div key={o.id} className="ch glass" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 9, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer" }}
+                        onClick={() => { setTab("commandes"); setSel(o); }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(78,127,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🛍️</div>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{o.client_nom}</span>
+                              <Badge status={o.status} />
+                            </div>
+                            <div style={{ fontSize: 11, color: C.sand }}>{o.article}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: C.gold }}>{o.montant?.toLocaleString()} <span style={{ fontSize: 10, fontWeight: 500 }}>FCFA</span></div>
                       </div>
                     ))}
                   </div>
