@@ -1,5 +1,14 @@
 import { useState, useEffect, useRef, createContext, useContext } from "react";
 import { createClient } from "@supabase/supabase-js";
+import {
+  Home, ShoppingCart, Package, Eye, Camera, Bell,
+  DollarSign, Store, Truck, CreditCard, Phone,
+  MessageCircle, Plus, Search, LogOut, RefreshCw,
+  ClipboardList, BarChart2, Check, Menu, ArrowLeft,
+  ShoppingBag, Share2, Copy, TrendingUp, Zap,
+  CheckCircle, MapPin, Clock, Star, Smartphone,
+  ChevronRight, Link2, LayoutDashboard, Image
+} from "lucide-react";
 
 /* ── SUPABASE ─────────────────────────────────────────── */
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -301,9 +310,9 @@ function Landing({ onVendeur, onLivreur }) {
           <div className="hero-card" style={{ width: 340, flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", borderRadius: 28, padding: 28, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)", animation: "scaleIn 1s ease both .5s" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 2, marginBottom: 20 }}>COMMENT ÇA MARCHE</div>
-              {[{ icon: "📸", t: "Ajoute tes produits", s: "Photos réelles depuis ton téléphone" }, { icon: "👤", t: "Client commande", s: "Paie via Wave ou Orange Money" }, { icon: "📲", t: "Tu es notifié", s: "WhatsApp instantané" }, { icon: "🛵", t: "Livraison", s: "Coordonne tes livreurs" }].map((s, i) => (
+              {[{ icon: <Camera size={19}/>, t: "Ajoute tes produits", s: "Photos réelles depuis ton téléphone" }, { icon: <ShoppingCart size={19}/>, t: "Client commande", s: "Paie via Wave ou Orange Money" }, { icon: <Bell size={19}/>, t: "Tu es notifié", s: "WhatsApp instantané" }, { icon: <Truck size={19}/>, t: "Livraison", s: "Coordonne tes livreurs" }].map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 13, padding: "11px 0", borderBottom: i < 3 ? "1px solid rgba(255,255,255,0.1)" : "none", animation: `slideR .6s ease both ${.7 + i * .12}s` }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 19, flexShrink: 0 }}>{s.icon}</div>
+                  <div style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", flexShrink: 0 }}>{s.icon}</div>
                   <div><div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{s.t}</div><div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{s.s}</div></div>
                 </div>
               ))}
@@ -319,9 +328,9 @@ function Landing({ onVendeur, onLivreur }) {
             <h2 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 800, color: C.white }}>Une plateforme. <span className="gs">Toutes les fonctions.</span></h2>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16 }}>
-            {[{ icon: "📸", t: "Vraies photos", d: "Upload tes photos produits depuis ton téléphone ou PC.", c: "#5A8FFA" }, { icon: "📲", t: "Notifs WhatsApp", d: "Chaque commande arrive direct sur ton WhatsApp.", c: "#22C55E" }, { icon: "💳", t: "Wave & Orange Money", d: "Paiements intégrés en un clic.", c: "#F59E0B" }, { icon: "🛵", t: "Réseau livreurs", d: "Assigne les commandes en temps réel.", c: "#A855F7" }].map((f, i) => (
+            {[{ icon: <Camera size={22}/>, t: "Vraies photos", d: "Upload tes photos produits depuis ton téléphone ou PC.", c: "#5A8FFA" }, { icon: <MessageCircle size={22}/>, t: "Notifs WhatsApp", d: "Chaque commande arrive direct sur ton WhatsApp.", c: "#22C55E" }, { icon: <CreditCard size={22}/>, t: "Wave & Orange Money", d: "Paiements intégrés en un clic.", c: "#F59E0B" }, { icon: <Truck size={22}/>, t: "Réseau livreurs", d: "Assigne les commandes en temps réel.", c: "#A855F7" }].map((f, i) => (
               <div key={i} className="reveal ch glass" style={{ borderRadius: 20, padding: 24, transitionDelay: `${i * .09}s` }}>
-                <div style={{ width: 50, height: 50, borderRadius: 15, background: `${f.c}18`, border: `1.5px solid ${f.c}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 16 }}>{f.icon}</div>
+                <div style={{ width: 50, height: 50, borderRadius: 15, background: `${f.c}18`, border: `1.5px solid ${f.c}30`, display: "flex", alignItems: "center", justifyContent: "center", color: f.c, marginBottom: 16 }}>{f.icon}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.white, marginBottom: 8 }}>{f.t}</div>
                 <div style={{ fontSize: 13, color: C.sand, lineHeight: 1.7 }}>{f.d}</div>
               </div>
@@ -464,7 +473,7 @@ function InscriptionVendeur({ onComplete }) {
       {step === "verify" && (
         <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", borderRadius: 28, padding: "36px 32px", width: "100%", maxWidth: 440, border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 40px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)", animation: "scaleIn .5s ease both" }}>
           <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📲</div>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom: 12, color: "#25D366" }}><Smartphone size={48}/></div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 8 }}>Code envoyé !</h2>
             <p style={{ fontSize: 13, color: C.sand, lineHeight: 1.7 }}>Vérifie ton WhatsApp ou SMS au<br /><strong style={{ color: C.white }}>+221 {phone}</strong></p>
           </div>
@@ -588,7 +597,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
 
   const rev = orders.reduce((s, o) => s + (o.montant || 0), 0);
   const nbNew = orders.filter(o => o.status === "nouveau").length;
-  const tabs = [{ id: "accueil", icon: "🏠", label: "Accueil" }, { id: "commandes", icon: "🛒", label: "Commandes" }, { id: "produits", icon: "📦", label: "Produits" }, { id: "boutique", icon: "👁", label: "Boutique" }];
+  const tabs = [{ id: "accueil", icon: <Home size={17}/>, label: "Accueil" }, { id: "commandes", icon: <ShoppingCart size={17}/>, label: "Commandes" }, { id: "produits", icon: <Package size={17}/>, label: "Produits" }, { id: "boutique", icon: <Eye size={17}/>, label: "Boutique" }];
   const inp = { width: "100%", padding: "12px 14px", borderRadius: 11, background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(90,143,250,0.05)", border: `1px solid ${C.border}`, fontSize: 13, outline: "none", fontFamily: "'Poppins',sans-serif", color: C.white, boxSizing: "border-box", marginBottom: 10, transition: "border-color .3s" };
 
   const SidebarContent = () => (
@@ -600,7 +609,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
         {tabs.map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setMobileMenuOpen(false); if (t.id === "boutique") onPreview(); }}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 11, padding: "11px 14px", borderRadius: 12, border: "none", cursor: "pointer", background: tab === t.id ? "rgba(90,143,250,0.15)" : "transparent", color: tab === t.id ? C.terra : C.sand, fontSize: 13, fontWeight: tab === t.id ? 700 : 500, fontFamily: "'Poppins',sans-serif", marginBottom: 3, borderLeft: `3px solid ${tab === t.id ? C.terra : "transparent"}`, transition: "all .2s", textAlign: "left" }}>
-            <span style={{ fontSize: 17 }}>{t.icon}</span>{t.label}
+            <span style={{ display:"flex", alignItems:"center" }}>{t.icon}</span>{t.label}
             {t.id === "commandes" && nbNew > 0 && <span style={{ marginLeft: "auto", background: C.terra, color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 700, padding: "2px 8px" }}>{nbNew}</span>}
           </button>
         ))}
@@ -608,13 +617,13 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
       <div style={{ padding: "12px 12px 16px" }}>
         <div style={{ background: theme === "dark" ? "rgba(255,255,255,0.04)" : "rgba(90,143,250,0.06)", borderRadius: 13, padding: 13, border: `1px solid ${C.border}`, marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(90,143,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🏪</div>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(90,143,250,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: C.terra }}><Store size={16}/></div>
             <div><div style={{ fontSize: 12, fontWeight: 700, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{store?.nom}</div><div style={{ fontSize: 10, color: C.green }}>● En ligne</div></div>
           </div>
           <ThemeToggle />
         </div>
         <button onClick={onLogout} style={{ width: "100%", padding: "9px", borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.sand, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .2s" }} onMouseEnter={e => { e.target.style.borderColor = "#EF444466"; e.target.style.color = "#EF4444"; }} onMouseLeave={e => { e.target.style.borderColor = C.border; e.target.style.color = C.sand; }}>
-          ↩ Déconnexion
+          <LogOut size={13} style={{marginRight:5}}/> Déconnexion
         </button>
       </div>
     </>
@@ -645,14 +654,14 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
       <div className="main-pad" style={{ flex: 1, overflow: "auto", padding: 28, paddingBottom: 80 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22, flexWrap: "wrap", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={() => setMobileMenuOpen(true)} style={{ background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "8px 12px", cursor: "pointer", fontSize: 18, color: C.white, display: "block" }}>☰</button>
+            <button onClick={() => setMobileMenuOpen(true)} style={{ background: theme === "dark" ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 11, padding: "8px 12px", cursor: "pointer", color: C.white, display: "flex", alignItems: "center" }}><Menu size={18}/></button>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: C.white, margin: 0 }}>
               {tab === "accueil" && "Bonjour 👋"}
               {tab === "commandes" && "Mes commandes"}
               {tab === "produits" && "Mes produits"}
             </h1>
           </div>
-          <Btn variant="ghost" onClick={loadData} style={{ fontSize: 11, padding: "7px 14px" }}>↻ Actualiser</Btn>
+          <Btn variant="ghost" onClick={loadData} style={{ fontSize: 11, padding: "7px 14px", display:"flex", alignItems:"center", gap:5 }}><RefreshCw size={13}/>Actualiser</Btn>
         </div>
 
         {loading ? <Spinner /> : (
@@ -687,14 +696,14 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 2, marginBottom: 12 }}>MES STATISTIQUES</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 22 }}>
                   {[
-                    { label: "Revenus totaux", value: rev.toLocaleString(), unit: "FCFA", icon: "💰", c: C.gold, pct: Math.min(100, Math.round(rev / 100000 * 100)) || 10 },
-                    { label: "Commandes", value: orders.length, unit: "total", icon: "🛒", c: C.terra, pct: Math.min(100, orders.length * 5) || 5 },
-                    { label: "Nouvelles", value: nbNew, unit: "en attente", icon: "🔔", c: "#F59E0B", pct: nbNew > 0 ? 100 : 0 },
-                    { label: "Produits", value: products.length, unit: "en ligne", icon: "📦", c: C.green, pct: Math.min(100, products.length * 10) || 0 },
+                    { label: "Revenus totaux", value: rev.toLocaleString(), unit: "FCFA", icon: <TrendingUp size={18}/>, c: C.gold, pct: Math.min(100, Math.round(rev / 100000 * 100)) || 10 },
+                    { label: "Commandes", value: orders.length, unit: "total", icon: <ShoppingCart size={18}/>, c: C.terra, pct: Math.min(100, orders.length * 5) || 5 },
+                    { label: "Nouvelles", value: nbNew, unit: "en attente", icon: <Bell size={18}/>, c: "#F59E0B", pct: nbNew > 0 ? 100 : 0 },
+                    { label: "Produits", value: products.length, unit: "en ligne", icon: <Package size={18}/>, c: C.green, pct: Math.min(100, products.length * 10) || 0 },
                   ].map((s, i) => (
                     <div key={i} className="ch glass" style={{ borderRadius: 20, padding: "18px 16px", display: "flex", alignItems: "center", gap: 14 }}>
                       <ProgressCircle pct={s.pct} size={56} color={s.c}>
-                        <span style={{ fontSize: 16 }}>{s.icon}</span>
+                        <span style={{ color: s.c, display:"flex" }}>{s.icon}</span>
                       </ProgressCircle>
                       <div>
                         <div style={{ fontSize: 20, fontWeight: 800, color: s.c, lineHeight: 1.1 }}>{s.value}</div>
@@ -709,15 +718,15 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                 <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 2, marginBottom: 12 }}>ACCÈS RAPIDE</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 22 }}>
                   {[
-                    { icon: "📸", t: "Produit", s: "Ajouter", action: () => setTab("produits"), c: C.terra },
-                    { icon: "🛒", t: "Commandes", s: nbNew > 0 ? `${nbNew} nouv.` : "Voir tout", action: () => setTab("commandes"), c: C.gold },
-                    { icon: "🏪", t: "Boutique", s: "Aperçu", action: onPreview, c: C.green },
+                    { icon: <Plus size={22}/>, t: "Produit", s: "Ajouter", action: () => setTab("produits"), c: C.terra },
+                    { icon: <ShoppingCart size={22}/>, t: "Commandes", s: nbNew > 0 ? `${nbNew} nouv.` : "Voir tout", action: () => setTab("commandes"), c: C.gold },
+                    { icon: <Store size={22}/>, t: "Boutique", s: "Aperçu", action: onPreview, c: C.green },
                   ].map((a, i) => (
                     <div key={i} onClick={a.action}
                       style={{ borderRadius: 18, padding: "16px 12px", border: `1px solid ${a.c}30`, background: `${a.c}12`, cursor: "pointer", textAlign: "center", transition: "all .2s", backdropFilter: "blur(12px)" }}
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.background = `${a.c}22`; }}
                       onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.background = `${a.c}12`; }}>
-                      <div style={{ fontSize: 22, marginBottom: 6 }}>{a.icon}</div>
+                      <div style={{ marginBottom: 6, display:"flex", justifyContent:"center", color: a.c }}>{a.icon}</div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.white }}>{a.t}</div>
                       <div style={{ fontSize: 10, color: a.c, marginTop: 2, fontWeight: 600 }}>{a.s}</div>
                     </div>
@@ -735,7 +744,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                       <div key={o.id} className="ch glass" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 9, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer" }}
                         onClick={() => { setTab("commandes"); setSel(o); }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(78,127,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>🛍️</div>
+                          <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(78,127,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: C.terra }}><ShoppingBag size={18}/></div>
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
                               <span style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{o.client_nom}</span>
@@ -754,15 +763,16 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
 
             {tab === "commandes" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {orders.length === 0 && <div style={{ textAlign: "center", padding: 60, color: C.sand }}><div style={{ fontSize: 44, marginBottom: 14 }}>📭</div><div style={{ fontSize: 15, fontWeight: 600, color: C.sand }}>Aucune commande pour l'instant</div></div>}
+                {orders.length === 0 && <div style={{ textAlign: "center", padding: 60, color: C.sand }}><div style={{ display:"flex", justifyContent:"center", marginBottom:14, color: C.sand }}><ShoppingBag size={44}/></div><div style={{ fontSize: 15, fontWeight: 600, color: C.sand }}>Aucune commande pour l'instant</div></div>}
                 {orders.map(o => (
                   <div key={o.id} className="ch" style={{ background: C.charcoal, backdropFilter: "blur(20px)", borderRadius: 16, padding: 18, border: `1px solid ${C.border}`, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
                     <div style={{ flex: 1, minWidth: 180 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}><span style={{ fontSize: 14, fontWeight: 700, color: C.white }}>{o.client_nom}</span><Badge status={o.status} /></div>
                       <div style={{ fontSize: 12, color: C.sand }}>{o.article}</div>
                       <div style={{ display: "flex", gap: 12, marginTop: 5, fontSize: 11, color: C.gray, flexWrap: "wrap" }}>
-                        <span>📱 {o.client_phone}</span><span>💳 {o.payment}</span>
-                        {o.livreur && <span>🛵 {o.livreur}</span>}
+                        <span style={{display:"flex",alignItems:"center",gap:4}}><Phone size={11}/>{o.client_phone}</span>
+                        <span style={{display:"flex",alignItems:"center",gap:4}}><CreditCard size={11}/>{o.payment}</span>
+                        {o.livreur && <span style={{display:"flex",alignItems:"center",gap:4}}><Truck size={11}/>{o.livreur}</span>}
                         <span>{new Date(o.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
@@ -802,7 +812,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                         </div>
                       ) : (
                         <div className="img-upload-zone" onClick={() => fileRef.current?.click()}>
-                          <div style={{ fontSize: 32, marginBottom: 8 }}>📸</div>
+                          <div style={{ display:"flex", justifyContent:"center", marginBottom: 8, color: C.terra }}><Camera size={32}/></div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: C.sand }}>Appuie pour ajouter une photo</div>
                           <div style={{ fontSize: 11, color: C.gray, marginTop: 4 }}>Depuis ta galerie ou ton appareil photo</div>
                         </div>
@@ -830,7 +840,7 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
                 )}
                 {products.length === 0 && !showAdd && (
                   <div style={{ textAlign: "center", padding: 60 }}>
-                    <div style={{ fontSize: 44, marginBottom: 14 }}>📦</div>
+                    <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color: C.sand }}><Package size={44}/></div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: C.sand, marginBottom: 20 }}>Aucun produit encore</div>
                     <Btn onClick={() => setShowAdd(true)}>📸 Ajouter un produit</Btn>
                   </div>
@@ -854,11 +864,11 @@ function DashboardVendeur({ store, onPreview, onLogout }) {
         )}
       </div>
 
-      <div className="bottom-nav" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: theme === "dark" ? "rgba(37,37,37,0.95)" : "rgba(255,255,255,0.95)", backdropFilter: "blur(20px)", borderTop: `1px solid ${C.border}`, display: "flex", zIndex: 1000 }}>
+      <div className="bottom-nav" style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: theme === "dark" ? "rgba(7,17,31,0.97)" : "rgba(255,255,255,0.97)", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", zIndex: 1000 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => { if (t.id === "boutique") { onPreview(); } else { setTab(t.id); } }}
-            style={{ flex: 1, padding: "10px 4px 12px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: tab === t.id ? C.terra : C.sand, transition: "color .2s" }}>
-            <span style={{ fontSize: 20, position: "relative" }}>
+            style={{ flex: 1, padding: "10px 4px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, color: tab === t.id ? C.terra : C.sand, transition: "color .2s" }}>
+            <span style={{ position: "relative", display:"flex" }}>
               {t.icon}
               {t.id === "commandes" && nbNew > 0 && <span style={{ position: "absolute", top: -4, right: -6, background: C.terra, color: "#fff", borderRadius: "50%", width: 14, height: 14, fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{nbNew}</span>}
             </span>
@@ -987,13 +997,13 @@ function BoutiqueClient({ store, onBack }) {
 
       {/* TOP NAV */}
       <nav style={{ position: "sticky", top: 0, zIndex: 200, background: isDark ? "rgba(31,31,31,0.95)" : "rgba(240,242,255,0.95)", backdropFilter: "blur(20px)", borderBottom: `1px solid ${C.border}`, padding: "12px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-        <button onClick={onBack} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "7px 13px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", flexShrink: 0 }}>←</button>
-        <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🏪</div>
+        <button onClick={onBack} style={{ background: "rgba(90,143,250,0.08)", border: `1px solid ${C.border}`, borderRadius: 10, padding: "7px 13px", color: C.sand, fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", flexShrink: 0, display:"flex", alignItems:"center" }}><ArrowLeft size={15}/></button>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color:"#fff" }}><Store size={16}/></div>
         <div style={{ fontWeight: 800, fontSize: 15, color: C.white, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{store?.nom}</div>
         <ThemeToggle />
         {count > 0 && (
           <button onClick={() => setView("cart")} style={{ background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", border: "none", borderRadius: 10, padding: "8px 16px", cursor: "pointer", fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0, display: "flex", alignItems: "center", gap: 6 }}>
-            🛒 <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 20, padding: "0 7px", fontSize: 11 }}>{count}</span>
+            <ShoppingCart size={15}/> <span style={{ background: "rgba(255,255,255,0.25)", borderRadius: 20, padding: "0 7px", fontSize: 11 }}>{count}</span>
           </button>
         )}
       </nav>
@@ -1020,7 +1030,7 @@ function BoutiqueClient({ store, onBack }) {
           <div style={{ background: C.charcoal, borderRadius: 16, padding: 18, border: `1px solid ${C.border}`, marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 14 }}>INFOS BOUTIQUE</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏪</div>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#5A8FFA,#2C3B8F)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}><Store size={18}/></div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>{store?.nom}</div>
                 <div style={{ fontSize: 10, color: C.green }}>● En ligne</div>
@@ -1035,9 +1045,9 @@ function BoutiqueClient({ store, onBack }) {
           </div>
           <div style={{ background: C.charcoal, borderRadius: 16, padding: 18, border: `1px solid ${C.border}` }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>PAIEMENTS ACCEPTÉS</div>
-            {[["📱", "Wave"], ["🟠", "Orange Money"], ["🚚", "À la livraison"]].map(([ic, lb]) => (
+            {[[<Smartphone size={13}/>, "Wave"], [<CreditCard size={13}/>, "Orange Money"], [<Truck size={13}/>, "À la livraison"]].map(([ic, lb]) => (
               <div key={lb} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 12, color: C.white }}>
-                <span>{ic}</span><span>{lb}</span>
+                <span style={{ color: C.terra, display:"flex" }}>{ic}</span><span>{lb}</span>
               </div>
             ))}
           </div>
@@ -1047,7 +1057,7 @@ function BoutiqueClient({ store, onBack }) {
         <main className="bc-main">
           {loading ? <Spinner /> : filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 20px", color: C.sand }}>
-              <div style={{ fontSize: 48, marginBottom: 14 }}>🔍</div>
+              <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color: C.sand }}><Search size={48}/></div>
               <div style={{ fontSize: 15, fontWeight: 600 }}>{search ? "Aucun produit trouvé" : "Aucun produit disponible"}</div>
             </div>
           ) : (
@@ -1179,7 +1189,7 @@ function BoutiqueClient({ store, onBack }) {
     <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <style>{FONTS}{G}</style>
       <div style={{ maxWidth: 420, width: "100%", textAlign: "center", animation: "scaleIn .5s ease both" }}>
-        <div style={{ fontSize: 72, marginBottom: 20, animation: "float 3s ease-in-out infinite" }}>🎉</div>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom: 20, animation: "float 3s ease-in-out infinite", color: C.green }}><CheckCircle size={72}/></div>
         <h2 style={{ fontSize: 26, fontWeight: 800, color: C.white, marginBottom: 8 }}>Commande confirmée !</h2>
         <p style={{ fontSize: 14, color: C.sand, marginBottom: 28, lineHeight: 1.7 }}>Le vendeur va vous contacter sur WhatsApp pour confirmer la livraison.</p>
         <div style={{ background: C.charcoal, borderRadius: 18, padding: 20, marginBottom: 28, textAlign: "left", border: `1px solid ${C.border}` }}>
@@ -1209,7 +1219,7 @@ function DashboardLivreur({ livreur }) {
         <div style={{ marginLeft: "auto", background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 14px", fontSize: 11, fontWeight: 700, color: "#fff" }}>● Disponible</div>
       </div>
       <div style={{ padding: 24, textAlign: "center" }}>
-        <div style={{ fontSize: 44, marginBottom: 14 }}>🛵</div>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:14, color: C.sand }}><Truck size={44}/></div>
         <div style={{ fontSize: 16, fontWeight: 700, color: C.white, marginBottom: 8 }}>Bienvenue {livreur?.nom} !</div>
         <div style={{ fontSize: 13, color: C.sand }}>Les missions te seront assignées par les vendeurs.</div>
       </div>
@@ -1237,7 +1247,7 @@ function BoutiquePublique({ lien }) {
   if (notFound) return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins',sans-serif", background: C.obsidian, color: C.white, textAlign: "center", padding: 24 }}>
       <style>{FONTS}{G}</style>
-      <div style={{ fontSize: 64, marginBottom: 20 }}>🔍</div>
+      <div style={{ display:"flex", justifyContent:"center", marginBottom: 20, color: C.sand }}><Search size={64}/></div>
       <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>Boutique introuvable</div>
       <div style={{ color: C.sand, marginBottom: 24, fontSize: 13 }}>Le lien <strong style={{ color: C.terra }}>/s/{lien}</strong> n'existe pas encore.</div>
       <a href="/" style={{ color: C.terra, textDecoration: "none", fontSize: 14, fontWeight: 700 }}>← Retour à Jaayma</a>
