@@ -9,6 +9,7 @@ import {
   CheckCircle, MapPin, Clock, Star, Smartphone,
   ChevronRight, Link2, LayoutDashboard, Image
 } from "lucide-react";
+import YouTubeAutomation from "./YouTubeAutomation.jsx";
 
 /* ── SUPABASE ─────────────────────────────────────────── */
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -257,7 +258,7 @@ function ThemeToggle() {
 /* ════════════════════════════════════════════════════════
    LANDING
 ════════════════════════════════════════════════════════ */
-function Landing({ onVendeur, onLivreur }) {
+function Landing({ onVendeur, onLivreur, onYoutube }) {
   const { C, theme } = useTheme();
   useReveal();
   const [nav, setNav] = useState(false);
@@ -276,6 +277,7 @@ function Landing({ onVendeur, onLivreur }) {
         <div style={{ fontSize: 20, fontWeight: 800, color: C.terra, flexShrink: 0 }}>Jaayma<span style={{ color: C.white }}>.</span></div>
         <div className="nav-inner" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div className="mob-hide"><ThemeToggle /></div>
+          <button onClick={onYoutube} className="mob-hide nav-btn-sm" style={{ background: "none", border: "1px solid rgba(255,0,0,0.35)", borderRadius: 9999, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: "#FF6B6B", cursor: "pointer", fontFamily: "'Poppins',sans-serif", whiteSpace: "nowrap" }}>▶ YouTube Auto</button>
           <button onClick={onLivreur} className="mob-hide nav-btn-sm" style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 9999, padding: "8px 16px", fontSize: 12, fontWeight: 600, color: C.gray, cursor: "pointer", fontFamily: "'Poppins',sans-serif", whiteSpace: "nowrap" }}>🛵 Livreur</button>
           <Btn onClick={onVendeur} className="nav-btn-sm" style={{ fontSize: 12, padding: "9px 18px", whiteSpace: "nowrap" }}>Créer ma boutique</Btn>
         </div>
@@ -1273,7 +1275,8 @@ export default function App() {
   const publicMatch = window.location.pathname.match(/^\/s\/([a-z0-9-]+)$/);
 
   const saved = (() => { try { const s = localStorage.getItem("jaayma_session"); return s ? JSON.parse(s) : null; } catch { return null; } })();
-  const [screen, setScreen] = useState(saved ? "dashboard-vendeur" : "landing");
+  const ytFromUrl = window.location.pathname === "/youtube" || new URLSearchParams(window.location.search).get("yt") === "1";
+  const [screen, setScreen] = useState(ytFromUrl ? "youtube" : saved ? "dashboard-vendeur" : "landing");
   const [storeData, setStoreData] = useState(saved);
   const [livreurData, setLivreurData] = useState(null);
 
@@ -1294,12 +1297,13 @@ export default function App() {
 
   return (
     <ThemeCtx.Provider value={{ C, theme, toggle }}>
-      {screen === "landing" && <Landing onVendeur={() => setScreen("inscription-vendeur")} onLivreur={() => setScreen("inscription-livreur")} />}
+      {screen === "landing" && <Landing onVendeur={() => setScreen("inscription-vendeur")} onLivreur={() => setScreen("inscription-livreur")} onYoutube={() => setScreen("youtube")} />}
       {screen === "inscription-vendeur" && <InscriptionVendeur onComplete={handleVendeurComplete} />}
       {screen === "inscription-livreur" && <InscriptionLivreur onComplete={d => { setLivreurData(d); setScreen("dashboard-livreur"); }} />}
       {screen === "dashboard-vendeur" && <DashboardVendeur store={storeData} onPreview={() => setScreen("boutique-client")} onLogout={handleLogout} />}
       {screen === "dashboard-livreur" && <DashboardLivreur livreur={livreurData} />}
       {screen === "boutique-client" && <BoutiqueClient store={storeData} onBack={() => setScreen("dashboard-vendeur")} />}
+      {screen === "youtube" && <YouTubeAutomation theme={theme} onBack={() => setScreen(saved ? "dashboard-vendeur" : "landing")} />}
     </ThemeCtx.Provider>
   );
 }
