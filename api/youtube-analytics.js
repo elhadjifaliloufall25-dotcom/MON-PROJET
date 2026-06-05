@@ -8,22 +8,62 @@ const COUNTRY_NAMES = {
   DZ: "Algérie", CH: "Suisse", NL: "Pays-Bas", PT: "Portugal",
 };
 
+async function refreshAccessToken(refreshToken, res) {
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: process.env.YOUTUBE_CLIENT_ID,
+      client_secret: process.env.YOUTUBE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+    }),
+  });
+  const data = await r.json();
+  if (!r.ok || !data.access_token) return null;
+  // Set new access token cookie
+  res.setHeader("Set-Cookie", `yt_access_token=${data.access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`);
+  return data.access_token;
+}
+
 export default async function handler(req, res) {
   const cookies = req.headers.cookie || "";
   const tokenMatch = cookies.match(/yt_access_token=([^;]+)/);
-  const accessToken = tokenMatch?.[1];
+  const refreshMatch = cookies.match(/yt_refresh_token=([^;]+)/);
+  let accessToken = tokenMatch?.[1];
+  const refreshToken = refreshMatch?.[1];
 
-  if (!accessToken) return res.status(401).json({ error: "Non connecté à YouTube" });
+  if (!accessToken && !refreshToken) {
+    return res.status(401).json({ error: "Non connecté à YouTube. Connecte ta chaîne d'abord." });
+  }
 
-  const h = { Authorization: `Bearer ${accessToken}` };
+  // If no access token but have refresh token, refresh immediately
+  if (!accessToken && refreshToken) {
+    accessToken = await refreshAccessToken(refreshToken, res);
+    if (!accessToken) return res.status(401).json({ error: "Session expirée. Reconnecte ta chaîne YouTube." });
+  }
+
+  let h = { Authorization: `Bearer ${accessToken}` };
 
   try {
-    // Channel info + contentDetails (uploads playlist ID)
-    const chanRes = await fetch(
+    // Channel info + contentDetails
+    let chanRes = await fetch(
       "https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&mine=true",
       { headers: h }
     );
-    if (!chanRes.ok) return res.status(401).json({ error: "Token invalide ou expiré. Reconnecte ta chaîne." });
+
+    // Token expired → try refresh
+    if (chanRes.status === 401 && refreshToken) {
+      accessToken = await refreshAccessToken(refreshToken, res);
+      if (!accessToken) return res.status(401).json({ error: "Session expirée. Reconnecte ta chaîne YouTube." });
+      h = { Authorization: `Bearer ${accessToken}` };
+      chanRes = await fetch(
+        "https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,contentDetails&mine=true",
+        { headers: h }
+      );
+    }
+
+    if (!chanRes.ok) return res.status(401).json({ error: "Token invalide. Reconnecte ta chaîne YouTube." });
 
     const chanData = await chanRes.json();
     if (!chanData.items?.length) return res.status(404).json({ error: "Chaîne YouTube introuvable." });
@@ -34,7 +74,6 @@ export default async function handler(req, res) {
     const endDate = new Date().toISOString().split("T")[0];
     const start28 = new Date(Date.now() - 28 * 86400000).toISOString().split("T")[0];
 
-    // Parallel: analytics + countries + videos list
     const [analyticsRes, countriesRes, videosListRes] = await Promise.all([
       fetch(
         `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==MINE&startDate=${start28}&endDate=${endDate}&metrics=views,estimatedMinutesWatched,subscribersGained&dimensions=day&sort=day`,
@@ -56,7 +95,6 @@ export default async function handler(req, res) {
     const countriesData = await countriesRes.json();
     const videosListData = videosListRes ? await videosListRes.json() : null;
 
-    // Aggregate 28-day metrics
     const rows = analyticsData.rows || [];
     let totalViews28 = 0, totalWatchMin = 0, totalNewSubs = 0;
     const viewsByDay = [];
@@ -68,14 +106,12 @@ export default async function handler(req, res) {
       viewsByDay.push({ day, views });
     }
 
-    // Countries
     const countries = (countriesData.rows || []).map(([code, views]) => ({
       code,
       name: COUNTRY_NAMES[code] || code,
       views,
     }));
 
-    // Top videos with statistics
     let topVideos = [];
     if (videosListData?.items?.length) {
       const videoIds = videosListData.items

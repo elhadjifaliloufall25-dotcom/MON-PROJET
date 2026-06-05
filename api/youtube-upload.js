@@ -1,15 +1,38 @@
 export const config = { api: { bodyParser: false, sizeLimit: "200mb" } };
 
+async function refreshToken(refreshToken, res) {
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: process.env.YOUTUBE_CLIENT_ID,
+      client_secret: process.env.YOUTUBE_CLIENT_SECRET,
+      refresh_token: refreshToken,
+    }),
+  });
+  const data = await r.json();
+  if (!r.ok || !data.access_token) return null;
+  res.setHeader("Set-Cookie", `yt_access_token=${data.access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`);
+  return data.access_token;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  // Parse cookies for access token
   const cookies = req.headers.cookie || "";
   const tokenMatch = cookies.match(/yt_access_token=([^;]+)/);
-  const accessToken = tokenMatch?.[1];
+  const refreshMatch = cookies.match(/yt_refresh_token=([^;]+)/);
+  let accessToken = tokenMatch?.[1];
+  const refreshTokenVal = refreshMatch?.[1];
 
-  if (!accessToken) {
+  if (!accessToken && !refreshTokenVal) {
     return res.status(401).json({ error: "Non connecté à YouTube. Clique sur 'Connecter ma chaîne' d'abord." });
+  }
+
+  if (!accessToken && refreshTokenVal) {
+    accessToken = await refreshToken(refreshTokenVal, res);
+    if (!accessToken) return res.status(401).json({ error: "Session expirée. Reconnecte ta chaîne YouTube." });
   }
 
   // Parse multipart form data manually
