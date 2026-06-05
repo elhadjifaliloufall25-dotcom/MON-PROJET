@@ -49,6 +49,11 @@ export default async function handler(req, res) {
 
   const tags = fields.tags ? fields.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
 
+  const publishAt = fields.publishAt || "";
+  const videoStatus = publishAt
+    ? { privacyStatus: "private", publishAt }
+    : { privacyStatus: "public" };
+
   const metadata = {
     snippet: {
       title: fields.title,
@@ -56,7 +61,7 @@ export default async function handler(req, res) {
       tags,
       categoryId: "22",
     },
-    status: { privacyStatus: "public" },
+    status: videoStatus,
   };
 
   try {
@@ -105,6 +110,8 @@ export default async function handler(req, res) {
       videoId: video.id,
       videoUrl: `https://www.youtube.com/watch?v=${video.id}`,
       title: video.snippet?.title,
+      scheduled: !!publishAt,
+      publishAt: publishAt || null,
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

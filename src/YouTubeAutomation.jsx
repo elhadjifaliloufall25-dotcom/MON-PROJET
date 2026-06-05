@@ -532,7 +532,16 @@ function UploadForm({ C, isDark, showToast }) {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const [publishDate, setPublishDate] = useState("");
+  const [publishTime, setPublishTime] = useState("08:00");
+  const [lastResult, setLastResult] = useState(null);
   const fileRef = useRef(null);
+
+  // Min date = tomorrow
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const minDate = tomorrow.toISOString().split("T")[0];
 
   const inp = (extra = {}) => ({
     width: "100%", padding: "12px 15px", borderRadius: 11, outline: "none",
@@ -542,25 +551,44 @@ function UploadForm({ C, isDark, showToast }) {
     boxSizing: "border-box", marginBottom: 10, transition: "border-color .25s", ...extra,
   });
 
+  function isValid() {
+    if (!videoFile || !title || uploading) return false;
+    if (scheduled && !publishDate) return false;
+    return true;
+  }
+
   async function handleUpload() {
-    if (!videoFile || !title || uploading) return;
+    if (!isValid()) return;
     setUploading(true);
+    setLastResult(null);
     try {
+      let publishAt = "";
+      if (scheduled && publishDate) {
+        // Convert local date+time to UTC ISO string
+        publishAt = new Date(`${publishDate}T${publishTime || "08:00"}:00`).toISOString();
+      }
+
       const form = new FormData();
       form.append("video", videoFile);
       form.append("title", title);
       form.append("description", description);
       form.append("tags", tags);
+      if (publishAt) form.append("publishAt", publishAt);
+
       const res = await fetch("/api/youtube-upload", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur upload");
-      showToast("🎉 Vidéo uploadée ! " + (data.videoUrl || ""));
-      setVideoFile(null); setTitle(""); setDescription(""); setTags("");
+
+      setLastResult({ url: data.videoUrl, scheduled: !!publishAt, publishAt });
+      showToast(publishAt ? "📅 Vidéo planifiée !" : "🎉 Vidéo publiée !");
+      setVideoFile(null); setTitle(""); setDescription(""); setTags(""); setPublishDate("");
     } catch (e) {
       showToast("❌ " + e.message);
     }
     setUploading(false);
   }
+
+  const borderColor = "rgba(255,255,255,0.1)";
 
   return (
     <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 18, padding: 22, border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(90,143,250,0.15)"}` }}>
@@ -587,14 +615,87 @@ function UploadForm({ C, isDark, showToast }) {
         </div>
       )}
 
-      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titre de la vidéo *" style={inp()} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"} />
-      <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description YouTube (mots-clés, timestamps…)" style={inp({ minHeight: 90, resize: "vertical" })} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"} />
-      <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tags séparés par des virgules" style={inp({ marginBottom: 0 })} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"} />
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Titre de la vidéo *" style={inp()} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = borderColor} />
+      <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description YouTube (mots-clés, timestamps…)" style={inp({ minHeight: 90, resize: "vertical" })} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = borderColor} />
+      <input value={tags} onChange={e => setTags(e.target.value)} placeholder="Tags séparés par des virgules" style={inp({ marginBottom: 14 })} onFocus={e => e.target.style.borderColor = "#FF0000"} onBlur={e => e.target.style.borderColor = borderColor} />
 
-      <button onClick={handleUpload} disabled={!videoFile || !title || uploading}
-        style={{ width: "100%", marginTop: 14, padding: "14px", borderRadius: 12, border: "none", background: videoFile && title && !uploading ? "#FF0000" : "rgba(255,0,0,0.2)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: videoFile && title && !uploading ? "pointer" : "default", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        {uploading ? <><span className="yt-spin" /> Upload en cours…</> : "⬆️ Uploader sur YouTube"}
+      {/* SCHEDULE TOGGLE */}
+      <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(90,143,250,0.04)", borderRadius: 14, padding: 14, border: `1px solid ${isDark ? "rgba(255,255,255,0.07)" : "rgba(90,143,250,0.12)"}`, marginBottom: 14 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: isDark ? "#8899BB" : "#6A6F83", letterSpacing: 1, marginBottom: 12 }}>MODE DE PUBLICATION</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: scheduled ? 14 : 0 }}>
+          <button onClick={() => setScheduled(false)}
+            style={{ padding: "11px 10px", borderRadius: 11, border: `2px solid ${!scheduled ? "#FF0000" : borderColor}`, background: !scheduled ? "rgba(255,0,0,0.1)" : "transparent", cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .2s" }}>
+            <div style={{ fontSize: 16, marginBottom: 3 }}>🔴</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: !scheduled ? "#FF6B6B" : (isDark ? "#8899BB" : "#6A6F83") }}>Publier maintenant</div>
+            <div style={{ fontSize: 10, color: isDark ? "#8899BB" : "#6A6F83", marginTop: 2 }}>Visible immédiatement</div>
+          </button>
+          <button onClick={() => setScheduled(true)}
+            style={{ padding: "11px 10px", borderRadius: 11, border: `2px solid ${scheduled ? "#F59E0B" : borderColor}`, background: scheduled ? "rgba(245,158,11,0.1)" : "transparent", cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .2s" }}>
+            <div style={{ fontSize: 16, marginBottom: 3 }}>📅</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: scheduled ? "#F59E0B" : (isDark ? "#8899BB" : "#6A6F83") }}>Planifier</div>
+            <div style={{ fontSize: 10, color: isDark ? "#8899BB" : "#6A6F83", marginTop: 2 }}>Choisir date & heure</div>
+          </button>
+        </div>
+
+        {scheduled && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, animation: "scaleIn .2s ease both" }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: 1, marginBottom: 6 }}>📅 DATE</div>
+              <input
+                type="date"
+                value={publishDate}
+                min={minDate}
+                onChange={e => setPublishDate(e.target.value)}
+                style={{ ...inp({ marginBottom: 0, accentColor: "#F59E0B" }), colorScheme: isDark ? "dark" : "light" }}
+                onFocus={e => e.target.style.borderColor = "#F59E0B"}
+                onBlur={e => e.target.style.borderColor = borderColor}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B", letterSpacing: 1, marginBottom: 6 }}>🕐 HEURE</div>
+              <input
+                type="time"
+                value={publishTime}
+                onChange={e => setPublishTime(e.target.value)}
+                style={{ ...inp({ marginBottom: 0, accentColor: "#F59E0B" }), colorScheme: isDark ? "dark" : "light" }}
+                onFocus={e => e.target.style.borderColor = "#F59E0B"}
+                onBlur={e => e.target.style.borderColor = borderColor}
+              />
+            </div>
+            {publishDate && (
+              <div style={{ gridColumn: "span 2", background: "rgba(245,158,11,0.08)", borderRadius: 9, padding: "9px 12px", border: "1px solid rgba(245,158,11,0.2)", fontSize: 12, color: "#F59E0B", fontWeight: 600 }}>
+                📅 Publication prévue : {new Date(`${publishDate}T${publishTime || "08:00"}:00`).toLocaleString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <button onClick={handleUpload} disabled={!isValid()}
+        style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: isValid() ? (scheduled ? "#F59E0B" : "#FF0000") : "rgba(255,0,0,0.2)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: isValid() ? "pointer" : "default", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background .2s" }}>
+        {uploading
+          ? <><span className="yt-spin" /> {scheduled ? "Planification…" : "Upload en cours…"}</>
+          : scheduled ? "📅 Planifier la publication" : "⬆️ Publier maintenant sur YouTube"}
       </button>
+
+      {lastResult && (
+        <div style={{ marginTop: 14, background: "rgba(34,197,94,0.08)", borderRadius: 12, padding: 14, border: "1px solid rgba(34,197,94,0.2)" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#22C55E", marginBottom: 6 }}>
+            {lastResult.scheduled ? "📅 Vidéo planifiée avec succès !" : "🎉 Vidéo publiée avec succès !"}
+          </div>
+          {lastResult.scheduled && (
+            <div style={{ fontSize: 11, color: isDark ? "#8899BB" : "#6A6F83", marginBottom: 8 }}>
+              Elle sera visible le {new Date(lastResult.publishAt).toLocaleString("fr-FR", { weekday: "long", day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
+            </div>
+          )}
+          {lastResult.url && (
+            <a href={lastResult.url} target="_blank" rel="noreferrer"
+              style={{ fontSize: 12, color: "#FF6B6B", fontWeight: 600, wordBreak: "break-all" }}>
+              🔗 {lastResult.url}
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
