@@ -75,6 +75,23 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
   const [seoData, setSeoData] = useState(null);
   const [loadingSEO, setLoadingSEO] = useState(false);
 
+  // Analytics
+  const [analytics, setAnalytics] = useState(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  async function fetchAnalytics() {
+    if (loadingAnalytics) return;
+    setLoadingAnalytics(true);
+    setAnalytics(null);
+    try {
+      const res = await fetch("/api/youtube-analytics");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAnalytics(data);
+    } catch (e) { showToast("❌ " + e.message); }
+    setLoadingAnalytics(false);
+  }
+
   // Queue
   const [queue, setQueue] = useState(() => {
     try { return JSON.parse(localStorage.getItem("yt_queue") || "[]"); } catch { return []; }
@@ -157,6 +174,7 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
     { id: "seo",     icon: "🔍", label: "SEO" },
     { id: "file",    icon: "📋", label: `File (${queue.length})` },
     { id: "upload",  icon: "⬆️", label: "Upload" },
+    { id: "analyse", icon: "📊", label: "Analytics" },
     { id: "gain",    icon: "💰", label: "Monétisation" },
     { id: "8d",      icon: "🎧", label: "8D Audio" },
   ];
@@ -445,6 +463,176 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
             </div>
 
             <UploadForm C={C} isDark={isDark} showToast={showToast} />
+          </div>
+        )}
+
+        {/* ═══════════ ANALYTICS ═══════════ */}
+        {tab === "analyse" && (
+          <div style={{ animation: "fadeUp .4s ease both" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: C.white, marginBottom: 4 }}>📊 Analyse de ta chaîne</h2>
+            <p style={{ fontSize: 13, color: C.sand, marginBottom: 20 }}>Statistiques en temps réel de Fawzeyni TV.</p>
+
+            {!analytics && !loadingAnalytics && (
+              <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                <div style={{ fontSize: 60, marginBottom: 16 }}>📊</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 8 }}>Connecte ta chaîne pour voir tes stats</div>
+                <div style={{ fontSize: 12, color: C.sand, marginBottom: 24, lineHeight: 1.7 }}>
+                  Clique d'abord sur <strong style={{ color: "#FF6B6B" }}>⬆️ Upload</strong> → "Connecter ma chaîne YouTube"<br />
+                  puis reviens ici et clique sur le bouton ci-dessous.
+                </div>
+                <button onClick={fetchAnalytics}
+                  style={{ padding: "13px 30px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  📊 Analyser ma chaîne
+                </button>
+              </div>
+            )}
+
+            {loadingAnalytics && (
+              <div style={{ textAlign: "center", padding: "60px 20px" }}>
+                <span className="yt-spin" style={{ width: 40, height: 40, borderWidth: 3, display: "inline-block" }} />
+                <div style={{ marginTop: 16, fontSize: 13, color: C.sand }}>Récupération des données YouTube…</div>
+              </div>
+            )}
+
+            {analytics && !loadingAnalytics && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* Channel card */}
+                <div style={{ background: "linear-gradient(135deg,rgba(255,0,0,0.1),rgba(255,0,0,0.03))", borderRadius: 18, padding: 20, border: "1px solid rgba(255,0,0,0.18)", display: "flex", gap: 16, alignItems: "center" }}>
+                  {analytics.channel.thumbnail && (
+                    <img src={analytics.channel.thumbnail} alt="" style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid rgba(255,0,0,0.3)", flexShrink: 0 }} />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 17, fontWeight: 800, color: C.white, marginBottom: 4 }}>{analytics.channel.name}</div>
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                      {[
+                        { label: "Abonnés", val: analytics.channel.hiddenSubscriberCount ? "Masqué" : analytics.channel.subscribers.toLocaleString("fr-FR") },
+                        { label: "Vues totales", val: analytics.channel.totalViews.toLocaleString("fr-FR") },
+                        { label: "Vidéos", val: analytics.channel.videoCount.toLocaleString("fr-FR") },
+                      ].map((s, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "#FF6B6B" }}>{s.val}</div>
+                          <div style={{ fontSize: 10, color: C.sand }}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={fetchAnalytics} style={{ background: "rgba(255,0,0,0.1)", border: "1px solid rgba(255,0,0,0.25)", borderRadius: 10, padding: "7px 12px", color: "#FF6B6B", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", flexShrink: 0 }}>
+                    🔄 Actualiser
+                  </button>
+                </div>
+
+                {/* 28-day stats */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 10 }}>28 DERNIERS JOURS</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    {[
+                      { icon: "👁️", label: "Vues", val: analytics.period28d.views.toLocaleString("fr-FR"), c: "#5A8FFA" },
+                      { icon: "⏱️", label: "Heures regardées", val: analytics.period28d.watchTimeHours.toLocaleString("fr-FR") + " h", c: "#F59E0B" },
+                      { icon: "👥", label: "Nouveaux abonnés", val: "+" + analytics.period28d.newSubscribers, c: "#22C55E" },
+                    ].map((s, i) => (
+                      <div key={i} style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.9)", borderRadius: 14, padding: "14px 12px", border: `1px solid ${s.c}22`, textAlign: "center" }}>
+                        <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: s.c }}>{s.val}</div>
+                        <div style={{ fontSize: 10, color: C.sand, marginTop: 3 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Views chart (CSS bars) */}
+                {analytics.period28d.viewsByDay.length > 0 && (
+                  <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 16, padding: 18, border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 14 }}>VUES PAR JOUR (28 JOURS)</div>
+                    {(() => {
+                      const maxViews = Math.max(...analytics.period28d.viewsByDay.map(d => d.views), 1);
+                      return (
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 70 }}>
+                          {analytics.period28d.viewsByDay.map((d, i) => (
+                            <div key={i} title={`${d.day}: ${d.views} vues`}
+                              style={{ flex: 1, background: `rgba(255,0,0,${0.3 + (d.views / maxViews) * 0.7})`, borderRadius: "3px 3px 0 0", height: `${Math.max(4, (d.views / maxViews) * 100)}%`, transition: "height .3s ease", cursor: "default" }} />
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, fontSize: 9, color: C.sand }}>
+                      <span>{analytics.period28d.viewsByDay[0]?.day?.slice(5)}</span>
+                      <span>{analytics.period28d.viewsByDay[analytics.period28d.viewsByDay.length - 1]?.day?.slice(5)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Top videos */}
+                {analytics.topVideos.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 10 }}>TOP VIDÉOS PAR VUES</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {analytics.topVideos.map((v, i) => (
+                        <div key={v.id} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 13, padding: "12px 14px", border: `1px solid ${C.border}`, display: "flex", gap: 12, alignItems: "center" }}>
+                          <div style={{ width: 24, height: 24, borderRadius: 8, background: i < 3 ? "rgba(255,0,0,0.2)" : "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: i < 3 ? "#FF6B6B" : C.sand, flexShrink: 0 }}>{i + 1}</div>
+                          {v.thumbnail && <img src={v.thumbnail} alt="" style={{ width: 64, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{v.title}</div>
+                            <div style={{ display: "flex", gap: 10, fontSize: 10, color: C.sand }}>
+                              <span>👁️ {v.views.toLocaleString("fr-FR")}</span>
+                              <span>👍 {v.likes.toLocaleString("fr-FR")}</span>
+                              {v.comments > 0 && <span>💬 {v.comments.toLocaleString("fr-FR")}</span>}
+                            </div>
+                          </div>
+                          <a href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer"
+                            style={{ fontSize: 10, color: "#FF6B6B", textDecoration: "none", fontWeight: 600, flexShrink: 0 }}>▶ Voir</a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Countries */}
+                {analytics.countries.length > 0 && (
+                  <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 16, padding: 18, border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 14 }}>AUDIENCE PAR PAYS</div>
+                    {(() => {
+                      const maxViews = analytics.countries[0]?.views || 1;
+                      return analytics.countries.map((c, i) => (
+                        <div key={c.code} style={{ marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12 }}>
+                            <span style={{ color: C.white, fontWeight: 600 }}>{c.name}</span>
+                            <span style={{ color: C.sand }}>{c.views.toLocaleString("fr-FR")} vues</span>
+                          </div>
+                          <div style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.08)", borderRadius: 100, height: 6, overflow: "hidden" }}>
+                            <div style={{ height: "100%", borderRadius: 100, background: i === 0 ? "#FF0000" : `rgba(255,0,0,${0.7 - i * 0.07})`, width: `${(c.views / maxViews) * 100}%`, transition: "width .5s ease" }} />
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                )}
+
+                {/* Smart recommendations */}
+                <div style={{ background: "rgba(34,197,94,0.06)", borderRadius: 16, padding: 18, border: "1px solid rgba(34,197,94,0.18)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#22C55E", letterSpacing: 1, marginBottom: 12 }}>🤖 RECOMMANDATIONS BASÉES SUR TES DONNÉES</div>
+                  {[
+                    analytics.period28d.newSubscribers < 20
+                      ? "📢 Tu gagnes peu d'abonnés : ajoute un call-to-action oral en fin de vidéo — 'Abonne-toi pour ne rater aucun xassida'"
+                      : "✅ Bonne croissance ! Continue à publier régulièrement pour maintenir ce rythme.",
+                    analytics.countries[0]
+                      ? `🌍 Ton audience principale est au ${analytics.countries[0].name} — publie entre 19h et 21h heure locale pour maximiser les vues`
+                      : "🌍 Partage tes vidéos dans les groupes WhatsApp de la communauté mouride pour élargir ton audience.",
+                    analytics.period28d.watchTimeHours < 100
+                      ? "⏱️ Ton watch time est faible : essaie des vidéos plus longues (20-30 min) ou lance un live 24/7 pour accumuler des heures."
+                      : `⏱️ Excellent ! ${analytics.period28d.watchTimeHours}h regardées ce mois. Continue avec ce rythme pour atteindre les 4000h YPP.`,
+                    analytics.topVideos[0]
+                      ? `🏆 Ta meilleure vidéo "${analytics.topVideos[0].title.slice(0, 40)}…" — analyse pourquoi elle marche et fais du contenu similaire.`
+                      : "🏆 Publie plus régulièrement pour identifier tes meilleures performances.",
+                  ].map((tip, i) => (
+                    <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10, fontSize: 12, color: C.sand, lineHeight: 1.6 }}>
+                      <span style={{ color: "#22C55E", flexShrink: 0 }}>→</span>{tip}
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            )}
           </div>
         )}
 
