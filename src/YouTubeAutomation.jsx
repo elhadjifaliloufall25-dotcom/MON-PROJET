@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft } from "lucide-react";
 
 const DARK_C = {
@@ -44,6 +44,11 @@ const NICHES = [
   ["Astuce & Hack 🔥","astuces productivité et life hacks"],
 ];
 
+function isYTConnected() {
+  try { return document.cookie.split(';').some(c => c.trim().startsWith('yt_connected=')); }
+  catch { return false; }
+}
+
 const STATUS_STYLE = {
   "à créer": { bg: "rgba(245,158,11,0.15)", c: "#F59E0B" },
   "en cours": { bg: "rgba(90,143,250,0.15)", c: "#5A8FFA" },
@@ -78,6 +83,25 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
   // Analytics
   const [analytics, setAnalytics] = useState(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [connected, setConnected] = useState(isYTConnected());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("yt_ok") === "1") {
+      setConnected(true);
+      showToast("✅ Chaîne YouTube connectée !");
+      window.history.replaceState({}, "", "/?yt=1");
+    } else if (params.get("yt_error")) {
+      showToast("❌ Connexion échouée : " + decodeURIComponent(params.get("yt_error")));
+      window.history.replaceState({}, "", "/?yt=1");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === "analyse" && connected && !analytics && !loadingAnalytics) {
+      fetchAnalytics();
+    }
+  }, [tab, connected]);
 
   async function fetchAnalytics() {
     if (loadingAnalytics) return;
@@ -86,7 +110,13 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
     try {
       const res = await fetch("/api/youtube-analytics");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) {
+        if (res.status === 401) {
+          setConnected(false);
+          document.cookie = "yt_connected=; Path=/; Max-Age=0";
+        }
+        throw new Error(data.error);
+      }
       setAnalytics(data);
     } catch (e) { showToast("❌ " + e.message); }
     setLoadingAnalytics(false);
@@ -457,8 +487,13 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
                   </div>
                 ))}
               </div>
-              <button onClick={() => window.open("/api/youtube-oauth", "_blank")} style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
-                🔗 Connecter ma chaîne YouTube
+              {connected && (
+                <div style={{ background: "rgba(34,197,94,0.1)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, border: "1px solid rgba(34,197,94,0.3)", fontSize: 12, color: "#22C55E", fontWeight: 700 }}>
+                  ✅ Chaîne YouTube connectée — tu peux uploader
+                </div>
+              )}
+              <button onClick={() => { window.location.href = "/api/youtube-oauth"; }} style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: connected ? "rgba(255,0,0,0.4)" : "#FF0000", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
+                {connected ? "🔄 Reconnecter ma chaîne YouTube" : "🔗 Connecter ma chaîne YouTube"}
               </button>
             </div>
 
@@ -475,15 +510,27 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
             {!analytics && !loadingAnalytics && (
               <div style={{ textAlign: "center", padding: "40px 20px" }}>
                 <div style={{ fontSize: 60, marginBottom: 16 }}>📊</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 8 }}>Connecte ta chaîne pour voir tes stats</div>
-                <div style={{ fontSize: 12, color: C.sand, marginBottom: 24, lineHeight: 1.7 }}>
-                  Clique d'abord sur <strong style={{ color: "#FF6B6B" }}>⬆️ Upload</strong> → "Connecter ma chaîne YouTube"<br />
-                  puis reviens ici et clique sur le bouton ci-dessous.
-                </div>
-                <button onClick={fetchAnalytics}
-                  style={{ padding: "13px 30px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  📊 Analyser ma chaîne
-                </button>
+                {!connected ? (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: C.white, marginBottom: 8 }}>Connecte ta chaîne pour voir tes stats</div>
+                    <div style={{ fontSize: 12, color: C.sand, marginBottom: 24, lineHeight: 1.7 }}>
+                      Connecte ton compte YouTube pour accéder à tes statistiques en temps réel.
+                    </div>
+                    <button onClick={() => { window.location.href = "/api/youtube-oauth"; }}
+                      style={{ padding: "13px 30px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
+                      🔗 Connecter ma chaîne YouTube
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#22C55E", marginBottom: 8 }}>✅ Chaîne connectée</div>
+                    <div style={{ fontSize: 12, color: C.sand, marginBottom: 24 }}>Chargement de tes statistiques en cours…</div>
+                    <button onClick={fetchAnalytics}
+                      style={{ padding: "13px 30px", borderRadius: 12, border: "none", background: "#FF0000", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "inline-flex", alignItems: "center", gap: 8 }}>
+                      📊 Charger mes statistiques
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

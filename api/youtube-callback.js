@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   const { code, error } = req.query;
 
   if (error) {
-    return res.redirect("/?yt_error=" + encodeURIComponent(error));
+    return res.redirect("/?yt=1&yt_error=" + encodeURIComponent(error));
   }
 
   const clientId = process.env.YOUTUBE_CLIENT_ID;
@@ -21,18 +21,19 @@ export default async function handler(req, res) {
     const tokens = await tokenRes.json();
 
     if (!tokenRes.ok) {
-      return res.redirect("/?yt_error=" + encodeURIComponent(tokens.error_description || "Token error"));
+      return res.redirect("/?yt=1&yt_error=" + encodeURIComponent(tokens.error_description || "Token error"));
     }
 
     const cookies = [
       `yt_access_token=${tokens.access_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600`,
+      `yt_connected=1; Path=/; SameSite=Lax; Max-Age=2592000`,
     ];
     if (tokens.refresh_token) {
       cookies.push(`yt_refresh_token=${tokens.refresh_token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`);
     }
     res.setHeader("Set-Cookie", cookies);
-    res.redirect("/?yt_connected=1");
+    res.redirect("/?yt=1&yt_ok=1");
   } catch (e) {
-    res.redirect("/?yt_error=" + encodeURIComponent(e.message));
+    res.redirect("/?yt=1&yt_error=" + encodeURIComponent(e.message));
   }
 }
