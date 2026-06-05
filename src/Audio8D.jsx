@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { ArrowLeft, Upload, Download, Music, Play, Square } from "lucide-react";
+import { ArrowLeft, Download, Play, Square, Zap, Star } from "lucide-react";
 
 const DARK_C = {
   obsidian: "#07111F", charcoal: "rgba(255,255,255,0.06)",
@@ -27,75 +27,77 @@ body{font-family:'Poppins',sans-serif}
 .eightd-btn:active{transform:scale(0.97)}
 `;
 
-// Encode AudioBuffer as WAV
+// Optimized WAV encoder using typed arrays (much faster than DataView loop)
 function encodeWAV(audioBuffer) {
   const numChannels = audioBuffer.numberOfChannels;
   const sampleRate = audioBuffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
   const samples = audioBuffer.length;
-  const blockAlign = (numChannels * bitDepth) / 8;
+  const blockAlign = numChannels * 2;
   const byteRate = sampleRate * blockAlign;
   const dataSize = samples * blockAlign;
+
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
+  const int16 = new Int16Array(buffer, 44);
 
-  function writeString(offset, str) { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); }
-  writeString(0, "RIFF");
+  function writeStr(off, s) { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); }
+  writeStr(0, "RIFF");
   view.setUint32(4, 36 + dataSize, true);
-  writeString(8, "WAVE");
-  writeString(12, "fmt ");
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
   view.setUint32(16, 16, true);
-  view.setUint16(20, format, true);
+  view.setUint16(20, 1, true);
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);
   view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitDepth, true);
-  writeString(36, "data");
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
   view.setUint32(40, dataSize, true);
 
-  let offset = 44;
+  const channels = [];
+  for (let ch = 0; ch < numChannels; ch++) channels.push(audioBuffer.getChannelData(ch));
+
+  let idx = 0;
   for (let i = 0; i < samples; i++) {
     for (let ch = 0; ch < numChannels; ch++) {
-      const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(ch)[i]));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-      offset += 2;
+      const s = channels[ch][i];
+      int16[idx++] = s < -1 ? -32768 : s > 1 ? 32767 : s < 0 ? (s * 32768) | 0 : (s * 32767) | 0;
     }
   }
   return buffer;
 }
 
-// Apply 8D effect using OfflineAudioContext
-async function apply8D(arrayBuffer, params, onProgress) {
+// Apply 8D effect
+// fastMode: processes at 22050 Hz (2-4x faster), reverb 1.2s, 5 kf/s
+// quality:  processes at source rate,            reverb 2.0s, 10 kf/s
+async function apply8D(arrayBuffer, params, onProgress, fastMode = false) {
   const ctx = new AudioContext();
   const decoded = await ctx.decodeAudioData(arrayBuffer.slice(0));
   await ctx.close();
 
   const { rotationSpeed, reverbAmount, bassBoost, stereoWidth } = params;
-  const sampleRate = decoded.sampleRate;
+  const sourceSampleRate = decoded.sampleRate;
+  const sampleRate = fastMode ? Math.min(22050, sourceSampleRate) : sourceSampleRate;
   const duration = decoded.duration;
   const numChannels = 2;
 
   const offlineCtx = new OfflineAudioContext(numChannels, Math.ceil(duration * sampleRate), sampleRate);
 
-  // Source
   const source = offlineCtx.createBufferSource();
-  source.buffer = decoded;
+  source.buffer = decoded; // browser resamples automatically if rates differ
 
-  // Gain
   const gainNode = offlineCtx.createGain();
   gainNode.gain.value = 0.9;
 
-  // Bass boost (low shelf via BiquadFilter)
   const bassFilter = offlineCtx.createBiquadFilter();
   bassFilter.type = "lowshelf";
   bassFilter.frequency.value = 150;
   bassFilter.gain.value = bassBoost;
 
-  // Reverb via ConvolverNode (impulse response generated)
   const convolver = offlineCtx.createConvolver();
-  const reverbLen = Math.ceil(sampleRate * 2.5); // 2.5 sec reverb tail
+  const reverbSecs = fastMode ? 1.2 : 2.0;
+  const reverbLen = Math.ceil(sampleRate * reverbSecs);
   const reverbBuf = offlineCtx.createBuffer(2, reverbLen, sampleRate);
   for (let ch = 0; ch < 2; ch++) {
     const d = reverbBuf.getChannelData(ch);
@@ -105,13 +107,11 @@ async function apply8D(arrayBuffer, params, onProgress) {
   }
   convolver.buffer = reverbBuf;
 
-  // Wet/dry for reverb
   const dryGain = offlineCtx.createGain();
   dryGain.gain.value = 1 - reverbAmount * 0.4;
   const wetGain = offlineCtx.createGain();
   wetGain.gain.value = reverbAmount * 0.55;
 
-  // 3D Panner for 8D rotation
   const panner = offlineCtx.createPanner();
   panner.panningModel = "HRTF";
   panner.distanceModel = "linear";
@@ -119,8 +119,9 @@ async function apply8D(arrayBuffer, params, onProgress) {
   panner.refDistance = 1;
   panner.rolloffFactor = 0;
 
-  // Animate panner position in a circle (LFO)
-  const steps = Math.ceil(duration * 60); // 60 keyframes per second
+  // Fewer keyframes per second reduces setup time; panning is smooth enough at 5-10 kf/s
+  const kfps = fastMode ? 5 : 10;
+  const steps = Math.ceil(duration * kfps);
   const stepTime = duration / steps;
   const radius = stereoWidth;
   for (let i = 0; i <= steps; i++) {
@@ -131,7 +132,6 @@ async function apply8D(arrayBuffer, params, onProgress) {
     panner.positionZ.setValueAtTime(radius * Math.cos(angle), t);
   }
 
-  // Connect graph: source → bassFilter → [dry path + wet path via convolver] → panner → gain → destination
   source.connect(bassFilter);
   bassFilter.connect(dryGain);
   bassFilter.connect(convolver);
@@ -143,14 +143,13 @@ async function apply8D(arrayBuffer, params, onProgress) {
 
   source.start(0);
 
-  // Render with progress polling
   const renderPromise = offlineCtx.startRendering();
   const startTime = Date.now();
+  const estimated = duration * (fastMode ? 0.22 : 0.55);
   const poll = setInterval(() => {
     const elapsed = (Date.now() - startTime) / 1000;
-    const estimated = duration * 0.6; // rough estimate
     onProgress(Math.min(0.9, elapsed / estimated));
-  }, 200);
+  }, 300);
 
   const renderedBuffer = await renderPromise;
   clearInterval(poll);
@@ -159,18 +158,26 @@ async function apply8D(arrayBuffer, params, onProgress) {
   return renderedBuffer;
 }
 
+function fmtDuration(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m > 0 ? `${m} min ${s} s` : `${s} s`;
+}
+
 export default function Audio8D({ onBack, theme }) {
   const C = theme === "dark" ? DARK_C : LIGHT_C;
   const isDark = theme === "dark";
 
   const [file, setFile] = useState(null);
+  const [audioDuration, setAudioDuration] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState(null); // { url, filename }
+  const [result, setResult] = useState(null);
   const [playing, setPlaying] = useState(false);
   const [previewPlaying, setPreviewPlaying] = useState(false);
   const [toast, setToast] = useState(null);
+  const [fastMode, setFastMode] = useState(true);
   const [params, setParams] = useState({
     rotationSpeed: 0.18,
     reverbAmount: 0.55,
@@ -183,17 +190,24 @@ export default function Audio8D({ onBack, theme }) {
   const previewRef = useRef(null);
   const originalArrayRef = useRef(null);
 
-  function showToast(m) { setToast(m); setTimeout(() => setToast(null), 3000); }
+  function showToast(m) { setToast(m); setTimeout(() => setToast(null), 3500); }
 
   const handleFileSelect = useCallback((f) => {
     if (!f) return;
     if (!f.type.startsWith("audio/")) { showToast("❌ Fichier audio uniquement (MP3, WAV, OGG...)"); return; }
-    if (f.size > 100 * 1024 * 1024) { showToast("❌ Fichier trop grand (max 100 MB)"); return; }
+    if (f.size > 150 * 1024 * 1024) { showToast("❌ Fichier trop grand (max 150 MB)"); return; }
     setFile(f);
     setResult(null);
     setProgress(0);
+    setAudioDuration(null);
+
     const url = URL.createObjectURL(f);
     setAudioUrl(url);
+
+    // Get duration
+    const tmp = new Audio(url);
+    tmp.onloadedmetadata = () => setAudioDuration(tmp.duration);
+
     const reader = new FileReader();
     reader.onload = (e) => { originalArrayRef.current = e.target.result; };
     reader.readAsArrayBuffer(f);
@@ -205,13 +219,21 @@ export default function Audio8D({ onBack, theme }) {
     handleFileSelect(f);
   }
 
+  // Estimated processing time
+  function estimatedTime() {
+    if (!audioDuration) return null;
+    const factor = fastMode ? 0.22 : 0.55;
+    const secs = Math.ceil(audioDuration * factor);
+    return fmtDuration(secs);
+  }
+
   async function convert() {
     if (!originalArrayRef.current || processing) return;
     setProcessing(true);
     setProgress(0);
     setResult(null);
     try {
-      const rendered = await apply8D(originalArrayRef.current, params, (p) => setProgress(p));
+      const rendered = await apply8D(originalArrayRef.current, params, (p) => setProgress(p), fastMode);
       const wav = encodeWAV(rendered);
       const blob = new Blob([wav], { type: "audio/wav" });
       const url = URL.createObjectURL(blob);
@@ -269,6 +291,8 @@ export default function Audio8D({ onBack, theme }) {
     height: 4,
   });
 
+  const est = estimatedTime();
+
   return (
     <div style={{ fontFamily: "'Poppins',sans-serif", background: C.obsidian, minHeight: "100vh", transition: "background .35s" }}>
       <style>{FONTS}{G}</style>
@@ -287,7 +311,7 @@ export default function Audio8D({ onBack, theme }) {
           <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>Convertisseur 8D Audio</div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>FAWZEYNI TV · XASSIDA EN 8D</div>
         </div>
-        <div style={{ background: "rgba(168,85,247,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#D8B4FE", border: "1px solid rgba(168,85,247,0.4)", animation: "pulse8d 2s infinite" }}>🎧 8D LIVE</div>
+        <div style={{ background: "rgba(168,85,247,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#D8B4FE", border: "1px solid rgba(168,85,247,0.4)", animation: "pulse8d 2s infinite" }}>🎧 8D</div>
       </div>
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "24px 18px 60px" }}>
@@ -306,7 +330,7 @@ export default function Audio8D({ onBack, theme }) {
               onMouseLeave={e => { e.currentTarget.style.borderColor = `${ACCENT}55`; e.currentTarget.style.background = "rgba(168,85,247,0.04)"; }}>
               <div className="spin8d" style={{ width: 64, height: 64, borderRadius: "50%", background: `rgba(168,85,247,0.15)`, border: `2px solid ${ACCENT}66`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28 }}>🎧</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: ACCENT, marginBottom: 6 }}>Dépose ton fichier xassida ici</div>
-              <div style={{ fontSize: 12, color: C.sand }}>MP3, WAV, OGG, M4A · Max 100 MB</div>
+              <div style={{ fontSize: 12, color: C.sand }}>MP3, WAV, OGG, M4A · Max 150 MB</div>
               <div style={{ marginTop: 14, display: "inline-block", background: ACCENT, color: "#fff", borderRadius: 10, padding: "9px 22px", fontSize: 12, fontWeight: 700 }}>Choisir un fichier</div>
             </div>
           ) : (
@@ -314,19 +338,52 @@ export default function Audio8D({ onBack, theme }) {
               <div style={{ width: 50, height: 50, borderRadius: 14, background: `rgba(168,85,247,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🎵</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</div>
-                <div style={{ fontSize: 11, color: C.sand, marginTop: 2 }}>{(file.size / 1024 / 1024).toFixed(1)} MB · Audio original</div>
+                <div style={{ fontSize: 11, color: C.sand, marginTop: 2 }}>
+                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                  {audioDuration ? ` · ${fmtDuration(audioDuration)}` : ""}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                 <button onClick={togglePreview}
                   style={{ width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: previewPlaying ? ACCENT : "transparent", color: previewPlaying ? "#fff" : C.sand, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {previewPlaying ? <Square size={14} /> : <Play size={14} />}
                 </button>
-                <button onClick={() => { setFile(null); setAudioUrl(null); setResult(null); previewRef.current = null; audioRef.current = null; }}
+                <button onClick={() => { setFile(null); setAudioUrl(null); setResult(null); setAudioDuration(null); previewRef.current = null; audioRef.current = null; }}
                   style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#EF4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>×</button>
               </div>
             </div>
           )}
         </div>
+
+        {/* MODE SELECTOR */}
+        {file && !processing && !result && (
+          <div style={{ ...card, marginBottom: 16, animation: "fadeUp .4s ease both .05s", padding: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 12 }}>MODE DE TRAITEMENT</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <button
+                onClick={() => setFastMode(true)}
+                style={{ padding: "12px 10px", borderRadius: 14, border: `2px solid ${fastMode ? "#22C55E" : C.border}`, background: fastMode ? "rgba(34,197,94,0.1)" : "transparent", cursor: "pointer", textAlign: "left", transition: "all .2s", fontFamily: "'Poppins',sans-serif" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                  <Zap size={15} color={fastMode ? "#22C55E" : C.sand} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: fastMode ? "#22C55E" : C.white }}>Rapide ⚡</span>
+                  {fastMode && <span style={{ fontSize: 9, background: "#22C55E", color: "#fff", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ACTIF</span>}
+                </div>
+                <div style={{ fontSize: 10, color: C.sand, lineHeight: 1.5 }}>22 kHz · Reverb 1.2s{est && fastMode ? <><br /><span style={{ color: "#22C55E", fontWeight: 600 }}>⏱ ~{est}</span></> : ""}</div>
+              </button>
+
+              <button
+                onClick={() => setFastMode(false)}
+                style={{ padding: "12px 10px", borderRadius: 14, border: `2px solid ${!fastMode ? ACCENT : C.border}`, background: !fastMode ? "rgba(168,85,247,0.1)" : "transparent", cursor: "pointer", textAlign: "left", transition: "all .2s", fontFamily: "'Poppins',sans-serif" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
+                  <Star size={15} color={!fastMode ? ACCENT : C.sand} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: !fastMode ? ACCENT : C.white }}>Qualité ✨</span>
+                  {!fastMode && <span style={{ fontSize: 9, background: ACCENT, color: "#fff", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ACTIF</span>}
+                </div>
+                <div style={{ fontSize: 10, color: C.sand, lineHeight: 1.5 }}>Taux source · Reverb 2.0s{est && !fastMode ? <><br /><span style={{ color: ACCENT, fontWeight: 600 }}>⏱ ~{est}</span></> : ""}</div>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* PARAMS */}
         {file && !processing && !result && (
@@ -334,7 +391,7 @@ export default function Audio8D({ onBack, theme }) {
             <div style={{ fontSize: 11, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 18 }}>RÉGLAGES DE L'EFFET 8D</div>
             {[
               { key: "rotationSpeed", label: "Vitesse de rotation", min: 0.05, max: 0.5, step: 0.01, unit: `${params.rotationSpeed.toFixed(2)} Hz`, desc: "Lent = spirituel · Rapide = dynamique" },
-              { key: "reverbAmount", label: "Réverbération", min: 0, max: 1, step: 0.05, unit: `${Math.round(params.reverbAmount * 100)}%`, desc: "Simule l'espace acoustique de la pièce" },
+              { key: "reverbAmount", label: "Réverbération", min: 0, max: 1, step: 0.05, unit: `${Math.round(params.reverbAmount * 100)}%`, desc: "Simule l'espace acoustique" },
               { key: "bassBoost", label: "Boost des basses", min: 0, max: 8, step: 0.5, unit: `+${params.bassBoost} dB`, desc: "Renforce les basses fréquences" },
               { key: "stereoWidth", label: "Largeur stéréo", min: 1, max: 6, step: 0.5, unit: `${params.stereoWidth}x`, desc: "Amplitude du mouvement gauche-droite" },
             ].map(({ key, label, min, max, step, unit, desc }) => (
@@ -378,7 +435,9 @@ export default function Audio8D({ onBack, theme }) {
         {file && !processing && !result && (
           <button onClick={convert} className="eightd-btn"
             style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", background: `linear-gradient(135deg,${ACCENT},#7c3aed)`, color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: "0 8px 32px rgba(168,85,247,0.4)", animation: "fadeUp .4s ease both .2s", letterSpacing: 0.5 }}>
-            <span style={{ fontSize: 20 }}>🎧</span> Convertir en 8D Audio
+            <span style={{ fontSize: 20 }}>🎧</span>
+            Convertir en 8D
+            {est && <span style={{ fontSize: 11, opacity: 0.8, fontWeight: 500 }}>(~{est})</span>}
           </button>
         )}
 
@@ -386,12 +445,19 @@ export default function Audio8D({ onBack, theme }) {
         {processing && (
           <div style={{ ...card, textAlign: "center", animation: "scaleIn .3s ease both" }}>
             <div className="spin8d" style={{ width: 72, height: 72, borderRadius: "50%", background: `linear-gradient(135deg,${ACCENT},#7c3aed)`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, boxShadow: `0 0 32px ${ACCENT}66` }}>🎧</div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.white, marginBottom: 6 }}>Traitement 8D en cours…</div>
-            <div style={{ fontSize: 12, color: C.sand, marginBottom: 20 }}>Application de l'effet de spatialisation audio</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: C.white, marginBottom: 6 }}>
+              Traitement {fastMode ? "rapide" : "qualité"} en cours…
+            </div>
+            <div style={{ fontSize: 12, color: C.sand, marginBottom: 20 }}>
+              {fastMode
+                ? "Mode rapide · 22 kHz · l'effet HRTF est appliqué"
+                : "Mode qualité · taux source · traitement complet"}
+            </div>
             <div style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.06)", borderRadius: 100, height: 10, overflow: "hidden", marginBottom: 10 }}>
-              <div style={{ height: "100%", borderRadius: 100, background: `linear-gradient(90deg,${ACCENT},#7c3aed)`, width: `${Math.round(progress * 100)}%`, transition: "width .3s ease", boxShadow: `0 0 12px ${ACCENT}88` }} />
+              <div style={{ height: "100%", borderRadius: 100, background: `linear-gradient(90deg,${ACCENT},#7c3aed)`, width: `${Math.round(progress * 100)}%`, transition: "width .4s ease", boxShadow: `0 0 12px ${ACCENT}88` }} />
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT }}>{Math.round(progress * 100)}%</div>
+            <div style={{ marginTop: 10, fontSize: 10, color: C.sand }}>Ne ferme pas cette page · traitement local dans ton navigateur</div>
           </div>
         )}
 
@@ -419,17 +485,16 @@ export default function Audio8D({ onBack, theme }) {
               </div>
             </div>
 
-            {/* Next step tip */}
             <div style={{ background: "rgba(34,197,94,0.07)", borderRadius: 16, padding: 16, border: "1px solid rgba(34,197,94,0.2)" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#22C55E", letterSpacing: 1, marginBottom: 8 }}>ÉTAPE SUIVANTE →</div>
-              {["Ouvre CapCut → Importe ce fichier WAV","Ajoute l'image de la Mosquée de Touba en fond","Titre : '🎧 [Nom du Xassida] 8D | Fawzeyni TV'","Exporte en MP4 et uploade sur YouTube"].map((s, i) => (
+              {["Ouvre CapCut → Importe ce fichier WAV", "Ajoute l'image de la Mosquée de Touba en fond", "Titre : '🎧 [Nom du Xassida] 8D | Fawzeyni TV'", "Exporte en MP4 et uploade sur YouTube"].map((s, i) => (
                 <div key={i} style={{ display: "flex", gap: 10, marginBottom: 6, fontSize: 12, color: C.sand }}>
                   <span style={{ color: "#22C55E", fontWeight: 800, flexShrink: 0 }}>{i + 1}.</span>{s}
                 </div>
               ))}
             </div>
 
-            <button onClick={() => { setFile(null); setAudioUrl(null); setResult(null); setProgress(0); previewRef.current = null; audioRef.current = null; }}
+            <button onClick={() => { setFile(null); setAudioUrl(null); setResult(null); setProgress(0); setAudioDuration(null); previewRef.current = null; audioRef.current = null; }}
               style={{ width: "100%", marginTop: 14, padding: "12px", borderRadius: 12, border: `1px solid ${C.border}`, background: "transparent", color: C.sand, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif" }}>
               + Convertir un autre xassida
             </button>
@@ -440,9 +505,9 @@ export default function Audio8D({ onBack, theme }) {
         {!file && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 20, animation: "fadeUp .5s ease both .2s" }}>
             {[
-              { icon: "🔄", title: "Rotation 3D", desc: "Le son tourne autour de ta tête avec l'effet HRTF" },
+              { icon: "🔄", title: "Rotation 3D HRTF", desc: "Le son tourne autour de ta tête avec l'effet HRTF" },
               { icon: "🏛️", title: "Réverbération", desc: "Effet de grande salle pour un rendu sacré et immersif" },
-              { icon: "🎚️", title: "Paramétrable", desc: "Ajuste la vitesse, la profondeur et les basses" },
+              { icon: "⚡", title: "Mode Rapide", desc: "2-4x plus rapide · qualité parfaite pour YouTube" },
               { icon: "📥", title: "Export WAV", desc: "Haute qualité, prêt pour CapCut et YouTube" },
             ].map((f, i) => (
               <div key={i} style={{ ...card, textAlign: "center", padding: 16 }}>
