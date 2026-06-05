@@ -10,6 +10,7 @@ import {
   ChevronRight, Link2, LayoutDashboard, Image
 } from "lucide-react";
 import YouTubeAutomation from "./YouTubeAutomation.jsx";
+import Audio8D from "./Audio8D.jsx";
 
 /* ── SUPABASE ─────────────────────────────────────────── */
 const SUPA_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -1303,7 +1304,8 @@ export default function App() {
       {screen === "dashboard-vendeur" && <DashboardVendeur store={storeData} onPreview={() => setScreen("boutique-client")} onLogout={handleLogout} />}
       {screen === "dashboard-livreur" && <DashboardLivreur livreur={livreurData} />}
       {screen === "boutique-client" && <BoutiqueClient store={storeData} onBack={() => setScreen("dashboard-vendeur")} />}
-      {screen === "youtube" && <YouTubeAutomation theme={theme} onBack={() => setScreen(saved ? "dashboard-vendeur" : "landing")} />}
+      {screen === "youtube" && <YouTubeAutomation theme={theme} onBack={() => setScreen(saved ? "dashboard-vendeur" : "landing")} onGo8D={() => setScreen("audio8d")} />}
+      {screen === "audio8d" && <Audio8D theme={theme} onBack={() => setScreen("youtube")} />}
     </ThemeCtx.Provider>
   );
 }

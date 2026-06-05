@@ -51,7 +51,7 @@ const STATUS_STYLE = {
   "publié":  { bg: "rgba(168,85,247,0.15)", c: "#A855F7" },
 };
 
-export default function YouTubeAutomation({ onBack, theme }) {
+export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
   const C = theme === "dark" ? DARK_C : LIGHT_C;
   const isDark = theme === "dark";
 
@@ -158,6 +158,7 @@ export default function YouTubeAutomation({ onBack, theme }) {
     { id: "file",    icon: "📋", label: `File (${queue.length})` },
     { id: "upload",  icon: "⬆️", label: "Upload" },
     { id: "gain",    icon: "💰", label: "Monétisation" },
+    { id: "8d",      icon: "🎧", label: "8D Audio" },
   ];
 
   return (
@@ -444,6 +445,22 @@ export default function YouTubeAutomation({ onBack, theme }) {
             </div>
 
             <UploadForm C={C} isDark={isDark} showToast={showToast} />
+          </div>
+        )}
+
+        {/* ═══════════ 8D ═══════════ */}
+        {tab === "8d" && (
+          <div style={{ animation: "fadeUp .4s ease both", textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ fontSize: 72, marginBottom: 20 }}>🎧</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.white, marginBottom: 10 }}>Convertisseur 8D Audio</h2>
+            <p style={{ fontSize: 13, color: C.sand, marginBottom: 28, lineHeight: 1.7 }}>
+              Transforme tes xassida en audio 8D immersif.<br/>
+              Effet de rotation 3D · Réverbération · Export WAV haute qualité.
+            </p>
+            <button onClick={onGo8D}
+              style={{ padding: "16px 36px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#A855F7,#7c3aed)", color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "'Poppins',sans-serif", boxShadow: "0 8px 32px rgba(168,85,247,0.4)", display: "inline-flex", alignItems: "center", gap: 10 }}>
+              🎧 Ouvrir le studio 8D →
+            </button>
           </div>
         )}
 
