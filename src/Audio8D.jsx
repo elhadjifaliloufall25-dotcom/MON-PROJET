@@ -119,17 +119,21 @@ async function apply8D(arrayBuffer, params, onProgress, fastMode = false) {
   panner.refDistance = 1;
   panner.rolloffFactor = 0;
 
-  // Fewer keyframes per second reduces setup time; panning is smooth enough at 5-10 kf/s
-  const kfps = fastMode ? 5 : 10;
+  // Smooth linear interpolation between keyframes instead of stepped setValueAtTime
+  const kfps = fastMode ? 5 : 12;
   const steps = Math.ceil(duration * kfps);
   const stepTime = duration / steps;
   const radius = stereoWidth;
-  for (let i = 0; i <= steps; i++) {
+  // Set initial position
+  panner.positionX.setValueAtTime(0, 0);
+  panner.positionY.setValueAtTime(0, 0);
+  panner.positionZ.setValueAtTime(radius, 0);
+  for (let i = 1; i <= steps; i++) {
     const t = i * stepTime;
     const angle = 2 * Math.PI * rotationSpeed * t;
-    panner.positionX.setValueAtTime(radius * Math.sin(angle), t);
-    panner.positionY.setValueAtTime(radius * 0.3 * Math.cos(angle * 0.5), t);
-    panner.positionZ.setValueAtTime(radius * Math.cos(angle), t);
+    panner.positionX.linearRampToValueAtTime(radius * Math.sin(angle), t);
+    panner.positionY.linearRampToValueAtTime(radius * 0.18 * Math.sin(angle * 0.4), t);
+    panner.positionZ.linearRampToValueAtTime(radius * Math.cos(angle), t);
   }
 
   source.connect(bassFilter);
@@ -414,10 +418,10 @@ export default function Audio8D({ onBack, theme }) {
               <div style={{ fontSize: 10, fontWeight: 700, color: C.sand, letterSpacing: 1, marginBottom: 10 }}>PRESETS RAPIDES</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {[
-                  { label: "🕌 Spirituel", vals: { rotationSpeed: 0.12, reverbAmount: 0.7, bassBoost: 2, stereoWidth: 2.5 } },
+                  { label: "🕌 Spirituel", vals: { rotationSpeed: 0.05, reverbAmount: 0.78, bassBoost: 2, stereoWidth: 2.5 } },
                   { label: "🎧 Standard 8D", vals: { rotationSpeed: 0.18, reverbAmount: 0.55, bassBoost: 3, stereoWidth: 3 } },
                   { label: "⚡ Intense", vals: { rotationSpeed: 0.35, reverbAmount: 0.45, bassBoost: 5, stereoWidth: 5 } },
-                  { label: "🌙 Nocturne", vals: { rotationSpeed: 0.08, reverbAmount: 0.85, bassBoost: 1, stereoWidth: 2 } },
+                  { label: "🌙 Nocturne", vals: { rotationSpeed: 0.06, reverbAmount: 0.85, bassBoost: 1, stereoWidth: 2 } },
                 ].map(({ label, vals }) => (
                   <button key={label} onClick={() => setParams(vals)}
                     style={{ padding: "7px 14px", borderRadius: 20, border: `1px solid ${ACCENT}44`, background: "rgba(168,85,247,0.08)", color: ACCENT, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins',sans-serif", transition: "all .2s" }}
