@@ -509,6 +509,7 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D, standalone = 
             </div>
 
             <UploadForm C={C} isDark={isDark} showToast={showToast} />
+            <ScheduledVideos C={C} isDark={isDark} connected={connected} />
           </div>
         )}
 
@@ -969,6 +970,87 @@ function UploadForm({ C, isDark, showToast }) {
               🔗 {lastResult.url}
             </a>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScheduledVideos({ C, isDark, connected }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function load() {
+    if (!connected || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/youtube-scheduled");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setData(json);
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  }
+
+  if (!connected) return null;
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.white }}>📅 Vidéos planifiées</div>
+        <button onClick={load} disabled={loading}
+          style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 9, padding: "6px 14px", color: "#F59E0B", fontSize: 11, fontWeight: 700, cursor: loading ? "default" : "pointer", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
+          {loading ? <><span className="yt-spin" style={{ borderTopColor: "#F59E0B", borderColor: "rgba(245,158,11,0.2)" }} /> Chargement…</> : "🔄 Vérifier"}
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ background: "rgba(239,68,68,0.08)", borderRadius: 12, padding: 14, border: "1px solid rgba(239,68,68,0.2)", fontSize: 12, color: "#EF4444" }}>
+          ❌ {error}
+        </div>
+      )}
+
+      {data && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {data.scheduled.length === 0 && data.privateOnly.length === 0 && (
+            <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 12, padding: 16, border: `1px solid rgba(255,255,255,0.08)`, fontSize: 12, color: C.sand, textAlign: "center" }}>
+              Aucune vidéo planifiée trouvée.
+            </div>
+          )}
+
+          {data.scheduled.map(v => (
+            <div key={v.id} style={{ background: "rgba(245,158,11,0.07)", borderRadius: 13, padding: "12px 14px", border: "1px solid rgba(245,158,11,0.2)", display: "flex", gap: 12, alignItems: "center" }}>
+              {v.thumbnail && <img src={v.thumbnail} alt="" style={{ width: 64, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{v.title}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#F59E0B" }}>
+                  📅 {new Date(v.publishAt).toLocaleString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+              <span style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B", fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, border: "1px solid rgba(245,158,11,0.3)", flexShrink: 0 }}>PLANIFIÉE</span>
+            </div>
+          ))}
+
+          {data.privateOnly.map(v => (
+            <div key={v.id} style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)", borderRadius: 13, padding: "12px 14px", border: `1px solid rgba(255,255,255,0.08)`, display: "flex", gap: 12, alignItems: "center" }}>
+              {v.thumbnail && <img src={v.thumbnail} alt="" style={{ width: 64, height: 36, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: C.white, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{v.title}</div>
+                <div style={{ fontSize: 11, color: C.sand }}>Vidéo privée (pas de planification)</div>
+              </div>
+              <span style={{ background: "rgba(255,255,255,0.06)", color: C.sand, fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }}>PRIVÉE</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!data && !loading && !error && (
+        <div style={{ background: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.7)", borderRadius: 12, padding: 14, border: `1px solid rgba(255,255,255,0.06)`, fontSize: 12, color: C.sand, textAlign: "center" }}>
+          Clique "Vérifier" pour voir tes vidéos planifiées.
         </div>
       )}
     </div>
