@@ -1304,7 +1304,7 @@ export default function App() {
       {screen === "dashboard-vendeur" && <DashboardVendeur store={storeData} onPreview={() => setScreen("boutique-client")} onLogout={handleLogout} />}
       {screen === "dashboard-livreur" && <DashboardLivreur livreur={livreurData} />}
       {screen === "boutique-client" && <BoutiqueClient store={storeData} onBack={() => setScreen("dashboard-vendeur")} />}
-      {screen === "youtube" && <YouTubeAutomation theme={theme} onBack={() => setScreen(saved ? "dashboard-vendeur" : "landing")} onGo8D={() => setScreen("audio8d")} />}
+      {screen === "youtube" && <YouTubeAutomation theme={theme} onBack={() => setScreen(saved ? "dashboard-vendeur" : "landing")} onGo8D={() => setScreen("audio8d")} standalone={ytFromUrl} />}
       {screen === "audio8d" && <Audio8D theme={theme} onBack={() => setScreen("youtube")} />}
     </ThemeCtx.Provider>
   );

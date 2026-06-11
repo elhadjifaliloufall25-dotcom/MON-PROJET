@@ -56,11 +56,11 @@ const STATUS_STYLE = {
   "publié":  { bg: "rgba(168,85,247,0.15)", c: "#A855F7" },
 };
 
-export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
+export default function YouTubeAutomation({ onBack, theme, onGo8D, standalone = false }) {
   const C = theme === "dark" ? DARK_C : LIGHT_C;
   const isDark = theme === "dark";
 
-  const [tab, setTab] = useState("idees");
+  const [tab, setTab] = useState(standalone ? "upload" : "idees");
   const [toast, setToast] = useState(null);
   function showToast(m) { setToast(m); setTimeout(() => setToast(null), 3200); }
   function copyText(t) { navigator.clipboard.writeText(t).then(() => showToast("✅ Copié !")).catch(() => showToast("❌ Erreur copie")); }
@@ -219,13 +219,24 @@ export default function YouTubeAutomation({ onBack, theme, onGo8D }) {
 
       {/* ── HEADER ── */}
       <div style={{ background: isDark ? "linear-gradient(135deg,#1a0000,#2d0000,#1a0000)" : "linear-gradient(135deg,#FF0000,#cc0000)", padding: "14px 20px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid rgba(255,0,0,0.2)" }}>
-        <button onClick={onBack} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 13px", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
-          <ArrowLeft size={13} /> Retour
-        </button>
+        {!standalone && (
+          <button onClick={onBack} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 13px", color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
+            <ArrowLeft size={13} /> Retour
+          </button>
+        )}
         <div style={{ width: 38, height: 38, borderRadius: 11, background: "#FF0000", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>▶</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>YouTube Automation</div>
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>GÉNÈRE · OPTIMISE · PUBLIE · GAGNE</div>
+          {standalone ? (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>Fawzeyni TV</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>YOUTUBE STUDIO · UPLOAD · ANALYTICS</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#fff" }}>YouTube Automation</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>GÉNÈRE · OPTIMISE · PUBLIE · GAGNE</div>
+            </>
+          )}
         </div>
         <div style={{ background: "rgba(0,0,0,0.25)", borderRadius: 20, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "#FF8080", border: "1px solid rgba(255,0,0,0.3)", animation: "pulse 2s infinite" }}>🔴 LIVE</div>
       </div>
@@ -767,23 +778,23 @@ function UploadForm({ C, isDark, showToast }) {
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [scheduled, setScheduled] = useState(false);
   const [publishDate, setPublishDate] = useState("");
   const [publishTime, setPublishTime] = useState("08:00");
   const [lastResult, setLastResult] = useState(null);
   const fileRef = useRef(null);
 
-  // Min date = tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split("T")[0];
 
   const inp = (extra = {}) => ({
-    width: "100%", padding: "12px 15px", borderRadius: 11, outline: "none",
+    width: "100%", padding: "14px 15px", borderRadius: 11, outline: "none",
     background: isDark ? "rgba(255,255,255,0.05)" : "rgba(90,143,250,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)", fontSize: 13,
+    border: "1px solid rgba(255,255,255,0.1)", fontSize: 14,
     fontFamily: "'Poppins',sans-serif", color: isDark ? "#fff" : "#1F1F1F",
-    boxSizing: "border-box", marginBottom: 10, transition: "border-color .25s", ...extra,
+    boxSizing: "border-box", marginBottom: 12, transition: "border-color .25s", ...extra,
   });
 
   function isValid() {
@@ -795,11 +806,11 @@ function UploadForm({ C, isDark, showToast }) {
   async function handleUpload() {
     if (!isValid()) return;
     setUploading(true);
+    setUploadProgress(0);
     setLastResult(null);
     try {
       let publishAt = "";
       if (scheduled && publishDate) {
-        // Convert local date+time to UTC ISO string
         publishAt = new Date(`${publishDate}T${publishTime || "08:00"}:00`).toISOString();
       }
 
@@ -810,15 +821,32 @@ function UploadForm({ C, isDark, showToast }) {
       form.append("tags", tags);
       if (publishAt) form.append("publishAt", publishAt);
 
-      const res = await fetch("/api/youtube-upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur upload");
+      // Use XMLHttpRequest for real upload progress on mobile
+      const data = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/youtube-upload");
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80));
+        };
+        xhr.onload = () => {
+          setUploadProgress(100);
+          try { resolve(JSON.parse(xhr.responseText)); }
+          catch { reject(new Error("Réponse invalide du serveur")); }
+        };
+        xhr.onerror = () => reject(new Error("Erreur réseau — vérifie ta connexion"));
+        xhr.ontimeout = () => reject(new Error("Délai dépassé — fichier trop lourd ?"));
+        xhr.timeout = 600000; // 10 min timeout for large files
+        xhr.send(form);
+      });
+
+      if (data.error) throw new Error(data.error);
 
       setLastResult({ url: data.videoUrl, scheduled: !!publishAt, publishAt });
-      showToast(publishAt ? "📅 Vidéo planifiée !" : "🎉 Vidéo publiée !");
-      setVideoFile(null); setTitle(""); setDescription(""); setTags(""); setPublishDate("");
+      showToast(publishAt ? "📅 Vidéo planifiée !" : "🎉 Vidéo publiée sur YouTube !");
+      setVideoFile(null); setTitle(""); setDescription(""); setTags(""); setPublishDate(""); setUploadProgress(0);
     } catch (e) {
       showToast("❌ " + e.message);
+      setUploadProgress(0);
     }
     setUploading(false);
   }
@@ -909,9 +937,21 @@ function UploadForm({ C, isDark, showToast }) {
       <button onClick={handleUpload} disabled={!isValid()}
         style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: isValid() ? (scheduled ? "#F59E0B" : "#FF0000") : "rgba(255,0,0,0.2)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: isValid() ? "pointer" : "default", fontFamily: "'Poppins',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "background .2s" }}>
         {uploading
-          ? <><span className="yt-spin" /> {scheduled ? "Planification…" : "Upload en cours…"}</>
+          ? <><span className="yt-spin" /> {uploadProgress > 0 && uploadProgress < 100 ? `Envoi ${uploadProgress}%…` : scheduled ? "Planification…" : "Upload en cours…"}</>
           : scheduled ? "📅 Planifier la publication" : "⬆️ Publier maintenant sur YouTube"}
       </button>
+
+      {uploading && uploadProgress > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 600, color: isDark ? "#8899BB" : "#6A6F83", marginBottom: 6 }}>
+            <span>{uploadProgress < 80 ? "📤 Envoi de la vidéo…" : uploadProgress < 100 ? "⚙️ Traitement YouTube…" : "✅ Terminé !"}</span>
+            <span style={{ color: uploadProgress === 100 ? "#22C55E" : (scheduled ? "#F59E0B" : "#FF6B6B"), fontWeight: 700 }}>{uploadProgress}%</span>
+          </div>
+          <div style={{ background: isDark ? "rgba(255,255,255,0.06)" : "rgba(90,143,250,0.08)", borderRadius: 100, height: 8, overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 100, background: uploadProgress === 100 ? "#22C55E" : (scheduled ? "#F59E0B" : "#FF0000"), width: `${uploadProgress}%`, transition: "width .4s ease" }} />
+          </div>
+        </div>
+      )}
 
       {lastResult && (
         <div style={{ marginTop: 14, background: "rgba(34,197,94,0.08)", borderRadius: 12, padding: 14, border: "1px solid rgba(34,197,94,0.2)" }}>
