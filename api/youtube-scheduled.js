@@ -26,63 +26,37 @@ export default async function handler(req, res) {
 
   if (!accessToken && !refreshTokenVal)
     return res.status(401).json({ error: "Non connecté" });
-
-  if (!accessToken && refreshTokenVal) {
+  if (!accessToken) {
     accessToken = await refreshToken(refreshTokenVal, res);
     if (!accessToken) return res.status(401).json({ error: "Session expirée" });
   }
 
   try {
-    // List private videos (scheduled videos are private with publishAt set)
+    // videos.list with mine=true lists all my videos including private/scheduled
     const r = await fetch(
-      "https://www.googleapis.com/youtube/v3/videos?part=snippet,status&myRating=none&mine=true&privacyStatus=private&maxResults=20",
+      "https://www.googleapis.com/youtube/v3/videos?part=snippet,status&mine=true&maxResults=20",
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
-    // The above won't work with mine=true on videos endpoint, use search
-    const searchRes = await fetch(
-      "https://www.googleapis.com/youtube/v3/search?part=snippet&forMine=true&type=video&privacyStatus=private&maxResults=20",
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
-    if (!searchRes.ok) {
-      const err = await searchRes.json();
-      if (searchRes.status === 401) return res.status(401).json({ error: "Token expiré" });
+    if (!r.ok) {
+      const err = await r.json();
+      if (r.status === 401) return res.status(401).json({ error: "Token expiré — reconnecte ta chaîne" });
       return res.status(500).json({ error: err.error?.message || "Erreur API YouTube" });
     }
 
-    const searchData = await searchRes.json();
-    const videoIds = (searchData.items || []).map(v => v.id?.videoId).filter(Boolean);
+    const data = await r.json();
+    const all = data.items || [];
+    const scheduled = all.filter(v => v.status?.publishAt);
+    const privateOnly = all.filter(v => v.status?.privacyStatus === "private" && !v.status?.publishAt);
 
-    if (videoIds.length === 0) return res.status(200).json({ videos: [] });
-
-    // Get full status info including publishAt
-    const detailRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=snippet,status&id=${videoIds.join(",")}&maxResults=20`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
-    if (!detailRes.ok) {
-      const err = await detailRes.json();
-      return res.status(500).json({ error: err.error?.message || "Erreur récupération détails" });
-    }
-
-    const detailData = await detailRes.json();
-    const videos = (detailData.items || []).map(v => ({
+    const fmt = v => ({
       id: v.id,
       title: v.snippet?.title,
-      thumbnail: v.snippet?.thumbnails?.medium?.url || v.snippet?.thumbnails?.default?.url,
-      publishedAt: v.snippet?.publishedAt,
-      privacyStatus: v.status?.privacyStatus,
-      uploadStatus: v.status?.uploadStatus,
+      thumbnail: v.snippet?.thumbnails?.medium?.url,
       publishAt: v.status?.publishAt || null,
-    }));
+    });
 
-    // Separate scheduled (has publishAt) from just private
-    const scheduled = videos.filter(v => v.publishAt);
-    const privateOnly = videos.filter(v => !v.publishAt);
-
-    res.status(200).json({ scheduled, privateOnly });
+    res.status(200).json({ scheduled: scheduled.map(fmt), privateOnly: privateOnly.map(fmt) });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
