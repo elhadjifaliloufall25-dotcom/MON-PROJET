@@ -1,12 +1,19 @@
-"""Diffuse les xassida en live 24/7 sur YouTube (image fixe + audio en boucle)."""
+"""Diffuse les xassida en live 24/7 sur YouTube + TikTok (image fixe + audio en boucle)."""
 import os
 import sys
 import time
 import subprocess
 from config import AUDIO_DIR, IMAGE_PATH, STREAM_KEY
 
+try:
+    from config import TIKTOK_SERVER, TIKTOK_STREAM_KEY
+except ImportError:
+    TIKTOK_SERVER = ""
+    TIKTOK_STREAM_KEY = ""
+
 AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav", ".flac")
-RTMP = f"rtmp://a.rtmp.youtube.com/live2/{STREAM_KEY}"
+RTMP_YT = f"rtmp://a.rtmp.youtube.com/live2/{STREAM_KEY}"
+RTMP_TT = f"{TIKTOK_SERVER}{TIKTOK_STREAM_KEY}" if (TIKTOK_SERVER and TIKTOK_STREAM_KEY) else None
 PLAYLIST = "playlist.txt"
 
 
@@ -22,6 +29,16 @@ def build_playlist():
     print(f"🎵 {len(files)} xassida dans la playlist.")
 
 
+def build_destinations():
+    dests = [f"[f=flv:onfail=ignore]{RTMP_YT}"]
+    if RTMP_TT:
+        dests.append(f"[f=flv:onfail=ignore]{RTMP_TT}")
+        print("📡 Streaming → YouTube + TikTok")
+    else:
+        print("📡 Streaming → YouTube uniquement (ajoute TIKTOK_STREAM_KEY dans config.py pour TikTok)")
+    return "|".join(dests)
+
+
 def ffmpeg_cmd():
     return [
         "ffmpeg",
@@ -33,7 +50,7 @@ def ffmpeg_cmd():
         "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
         "-bufsize", "6000k", "-r", "30", "-g", "60",
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-        "-f", "flv", RTMP,
+        "-f", "tee", build_destinations(),
     ]
 
 
