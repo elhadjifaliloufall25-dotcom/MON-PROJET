@@ -17,8 +17,18 @@ RTMP_TT = f"{TIKTOK_SERVER}{TIKTOK_STREAM_KEY}" if (TIKTOK_SERVER and TIKTOK_STR
 PLAYLIST = "playlist.txt"
 
 
+def order_key(name):
+    """Trie par l'ID Telegram en préfixe (numérique) = du plus ancien au plus récent.
+    Les fichiers sans préfixe numérique passent à la fin."""
+    prefix = name.split("_", 1)[0]
+    return (0, int(prefix)) if prefix.isdigit() else (1, name)
+
+
 def build_playlist():
-    files = sorted(f for f in os.listdir(AUDIO_DIR) if f.lower().endswith(AUDIO_EXT))
+    files = sorted(
+        (f for f in os.listdir(AUDIO_DIR) if f.lower().endswith(AUDIO_EXT)),
+        key=order_key,
+    )
     if not files:
         print(f"❌ Aucun fichier audio dans '{AUDIO_DIR}'. Lance d'abord : python download.py")
         sys.exit(1)
