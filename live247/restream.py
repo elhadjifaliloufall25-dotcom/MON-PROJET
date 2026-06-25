@@ -64,7 +64,11 @@ def main():
     while True:
         stream_url = get_stream_url(url)
         cmd = [
-            "ffmpeg", "-re",
+            "ffmpeg",
+            # Reconnexion auto si l'URL de la source live coupe/expire
+            "-reconnect", "1", "-reconnect_streamed", "1",
+            "-reconnect_delay_max", "5",
+            # PAS de "-re" : la source est déjà en direct (temps réel)
             "-i", stream_url,
             "-c:v", "libx264", "-preset", "veryfast",
             "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
