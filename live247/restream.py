@@ -66,7 +66,10 @@ def main():
         cmd = [
             "ffmpeg", "-re",
             "-i", stream_url,
-            "-c", "copy",
+            "-c:v", "libx264", "-preset", "veryfast",
+            "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
+            "-bufsize", "6000k", "-r", "30", "-g", "60",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
             "-f", "tee", build_destinations(),
         ]
         print("🔴 Re-diffusion en cours… (Ctrl+C pour arrêter)")
