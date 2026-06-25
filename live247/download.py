@@ -1,6 +1,7 @@
-"""Télécharge les fichiers audio xassida depuis ton canal Telegram.
-Gère aussi les canaux PRIVÉS : si le nom ne correspond pas, une liste
-numérotée de tes canaux s'affiche pour que tu choisisses le bon.
+"""Télécharge et synchronise les fichiers audio xassida depuis ton canal Telegram.
+- Télécharge les nouveaux fichiers audio
+- Supprime les fichiers locaux dont le message a été supprimé du canal
+- Gère les canaux PRIVÉS : liste numérotée si le nom ne correspond pas
 """
 import os
 from telethon import TelegramClient
@@ -22,7 +23,6 @@ def is_audio(msg):
 
 
 async def resolve_channel():
-    # 1) Tentative directe (username, lien d'invitation, ID)
     if CHANNEL:
         try:
             return await client.get_entity(CHANNEL)
@@ -31,7 +31,6 @@ async def resolve_channel():
 
     dialogs = await client.get_dialogs()
 
-    # 2) Correspondance par titre (canal privé nommé)
     if CHANNEL:
         target = str(CHANNEL).strip().lower()
         for d in dialogs:
@@ -41,7 +40,6 @@ async def resolve_channel():
             if d.name and target in d.name.strip().lower():
                 return d.entity
 
-    # 3) Sélection manuelle par numéro
     choices = [d for d in dialogs if d.is_channel or d.is_group]
     if not choices:
         raise SystemExit("❌ Aucun canal trouvé. Rejoins/crée ton canal de xassida d'abord.")
@@ -55,17 +53,38 @@ async def resolve_channel():
         print("   Numéro invalide, réessaie.")
 
 
+def sync_deleted(telegram_ids):
+    """Supprime les fichiers locaux dont le message n'existe plus sur Telegram."""
+    deleted = 0
+    for fname in os.listdir(AUDIO_DIR):
+        if not fname.lower().endswith(AUDIO_EXT):
+            continue
+        parts = fname.split("_", 1)
+        if not parts[0].isdigit():
+            continue
+        if int(parts[0]) not in telegram_ids:
+            path = os.path.join(AUDIO_DIR, fname)
+            os.remove(path)
+            print(f"🗑️  Supprimé (retiré du canal) : {fname}")
+            deleted += 1
+    return deleted
+
+
 async def main():
     os.makedirs(AUDIO_DIR, exist_ok=True)
     await client.start()
     print("✅ Connecté à Telegram.")
     channel = await resolve_channel()
     print(f"📡 Canal sélectionné : {getattr(channel, 'title', channel)}")
-    print("🔎 Recherche des audios…")
+    print("🔎 Synchronisation des audios…")
+
     new = 0
+    telegram_ids = set()
+
     async for msg in client.iter_messages(channel):
         if not is_audio(msg):
             continue
+        telegram_ids.add(msg.id)
         base = (msg.file.name if msg.file and msg.file.name else f"xassida_{msg.id}.mp3")
         path = os.path.join(AUDIO_DIR, f"{msg.id}_{base}")
         if os.path.exists(path):
@@ -73,8 +92,10 @@ async def main():
         print(f"⬇️  {base}")
         await msg.download_media(file=path)
         new += 1
+
+    deleted = sync_deleted(telegram_ids)
     total = len([f for f in os.listdir(AUDIO_DIR) if f.lower().endswith(AUDIO_EXT)])
-    print(f"\n🎉 {new} nouveau(x) fichier(s) — {total} xassida au total dans '{AUDIO_DIR}'.")
+    print(f"\n✅ {new} ajouté(s) — {deleted} supprimé(s) — {total} xassida au total dans '{AUDIO_DIR}'.")
 
 
 with client:
