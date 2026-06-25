@@ -3,6 +3,10 @@
 Usage :
     python restream.py https://www.youtube.com/watch?v=XXXXX
 
+Méthode : yt-dlp télécharge le flux live et le « pipe » directement dans
+FFmpeg, qui ré-encode en H.264/AAC et envoie vers YouTube (+ TikTok).
+Ça évite les URLs qui expirent et le problème audio/vidéo séparés.
+
 Nécessite :
     pip install yt-dlp   (inclus dans requirements.txt)
 
@@ -23,7 +27,7 @@ try:
         TIKTOK_SERVER = ""
         TIKTOK_STREAM_KEY = ""
 except ImportError:
-    print("❌ config.py introuvable. Lance setup.py d'abord.")
+    print("❌ config.py introuvable. Ouvre le terminal dans le dossier qui contient config.py.")
     sys.exit(1)
 
 RTMP_YT = f"rtmp://a.rtmp.youtube.com/live2/{STREAM_KEY}"
@@ -40,16 +44,27 @@ def build_destinations():
     return "|".join(dests)
 
 
-def get_stream_url(youtube_url):
-    print("🔄 Récupération du flux source via yt-dlp…")
-    result = subprocess.run(
-        [sys.executable, "-m", "yt_dlp", "-f", "best[ext=mp4]/best", "--get-url", youtube_url],
-        capture_output=True, text=True
-    )
-    if result.returncode != 0:
-        print(f"❌ Impossible de récupérer le flux :\n{result.stderr}")
-        sys.exit(1)
-    return result.stdout.strip().splitlines()[0]
+def ytdlp_cmd(url):
+    # -f best : un seul format déjà muxé (audio+vidéo) — idéal pour piper
+    # -o -    : sortie sur stdout (le « tuyau »)
+    return [
+        sys.executable, "-m", "yt_dlp",
+        "-f", "best",
+        "--no-part", "--quiet", "--no-warnings",
+        "-o", "-", url,
+    ]
+
+
+def ffmpeg_cmd():
+    return [
+        "ffmpeg",
+        "-i", "pipe:0",                       # lit le flux venu de yt-dlp
+        "-c:v", "libx264", "-preset", "veryfast",
+        "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
+        "-bufsize", "6000k", "-r", "30", "-g", "60",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
+        "-f", "tee", build_destinations(),
+    ]
 
 
 def main():
@@ -58,26 +73,27 @@ def main():
         print("Usage : python restream.py <URL_DU_LIVE_YOUTUBE>")
         sys.exit(1)
 
+    if not STREAM_KEY:
+        print("❌ STREAM_KEY vide dans config.py. Ajoute ta clé YouTube d'abord.")
+        sys.exit(1)
+
     url = sys.argv[1]
     print(f"🔗 Source : {url}")
+    print("⚠️  Vérifie que demarrer.bat (live xassida) est FERMÉ — une seule")
+    print("    diffusion à la fois par clé YouTube, sinon « Échec ».\n")
 
     while True:
-        stream_url = get_stream_url(url)
-        cmd = [
-            "ffmpeg",
-            # Reconnexion auto si l'URL de la source live coupe/expire
-            "-reconnect", "1", "-reconnect_streamed", "1",
-            "-reconnect_delay_max", "5",
-            # PAS de "-re" : la source est déjà en direct (temps réel)
-            "-i", stream_url,
-            "-c:v", "libx264", "-preset", "veryfast",
-            "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
-            "-bufsize", "6000k", "-r", "30", "-g", "60",
-            "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-            "-f", "tee", build_destinations(),
-        ]
+        print("🔄 Connexion à la source via yt-dlp…")
+        yt = subprocess.Popen(ytdlp_cmd(url), stdout=subprocess.PIPE)
+        ff = subprocess.Popen(ffmpeg_cmd(), stdin=yt.stdout)
+        yt.stdout.close()  # ffmpeg détient maintenant le tuyau
         print("🔴 Re-diffusion en cours… (Ctrl+C pour arrêter)")
-        subprocess.run(cmd)
+        try:
+            ff.wait()
+        finally:
+            for p in (ff, yt):
+                if p.poll() is None:
+                    p.terminate()
         print("⚠️  Flux interrompu — redémarrage dans 10s…")
         time.sleep(10)
 
