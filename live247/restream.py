@@ -43,7 +43,7 @@ def build_destinations():
 def get_stream_url(youtube_url):
     print("🔄 Récupération du flux source via yt-dlp…")
     result = subprocess.run(
-        ["yt-dlp", "-f", "best[ext=mp4]/best", "--get-url", youtube_url],
+        [sys.executable, "-m", "yt_dlp", "-f", "best[ext=mp4]/best", "--get-url", youtube_url],
         capture_output=True, text=True
     )
     if result.returncode != 0:
