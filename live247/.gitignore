@@ -5,5 +5,6 @@ config.py
 audio/
 cover.jpg
 playlist.txt
+state.txt
 __pycache__/
 *.pyc

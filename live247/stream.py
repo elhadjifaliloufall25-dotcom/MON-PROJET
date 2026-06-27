@@ -1,4 +1,11 @@
-"""Diffuse les xassida en live 24/7 sur YouTube + TikTok (image fixe + audio en boucle)."""
+"""Live 24/7 des xassida sur YouTube (+ TikTok) — image fixe + audio.
+
+Lecture PISTE PAR PISTE avec mémoire de position :
+  • Reprend EXACTEMENT où le live s'est coupé (fichier state.txt)
+  • Recharge la liste des sons à chaque cycle → les nouveaux xassida
+    téléchargés apparaissent tout seuls, les supprimés disparaissent
+  • Ordre du plus ancien au plus récent (ID Telegram)
+"""
 import os
 import sys
 import time
@@ -14,70 +21,94 @@ except ImportError:
 AUDIO_EXT = (".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav", ".flac")
 RTMP_YT = f"rtmp://a.rtmp.youtube.com/live2/{STREAM_KEY}"
 RTMP_TT = f"{TIKTOK_SERVER}{TIKTOK_STREAM_KEY}" if (TIKTOK_SERVER and TIKTOK_STREAM_KEY) else None
-PLAYLIST = "playlist.txt"
+STATE = "state.txt"
 
 
 def order_key(name):
-    """Trie par l'ID Telegram en préfixe (numérique) = du plus ancien au plus récent.
-    Les fichiers sans préfixe numérique passent à la fin."""
+    """Tri numérique par l'ID Telegram en préfixe = du plus ancien au plus récent."""
     prefix = name.split("_", 1)[0]
     return (0, int(prefix)) if prefix.isdigit() else (1, name)
 
 
-def build_playlist():
-    files = sorted(
-        (f for f in os.listdir(AUDIO_DIR) if f.lower().endswith(AUDIO_EXT)),
-        key=order_key,
-    )
-    if not files:
-        print(f"❌ Aucun fichier audio dans '{AUDIO_DIR}'. Lance d'abord : python download.py")
-        sys.exit(1)
-    with open(PLAYLIST, "w", encoding="utf-8") as f:
-        for name in files:
-            p = os.path.abspath(os.path.join(AUDIO_DIR, name)).replace("'", "'\\''")
-            f.write(f"file '{p}'\n")
-    print(f"🎵 {len(files)} xassida dans la playlist.")
+def list_audio():
+    files = [f for f in os.listdir(AUDIO_DIR) if f.lower().endswith(AUDIO_EXT)]
+    return sorted(files, key=order_key)
 
 
-def build_destinations():
-    dests = [f"[f=flv:onfail=ignore]{RTMP_YT}"]
-    if RTMP_TT:
-        dests.append(f"[f=flv:onfail=ignore]{RTMP_TT}")
-        print("📡 Streaming → YouTube + TikTok")
-    else:
-        print("📡 Streaming → YouTube uniquement (ajoute TIKTOK_STREAM_KEY dans config.py pour TikTok)")
-    return "|".join(dests)
+def load_position():
+    """Renvoie le nom du dernier fichier joué (ou None)."""
+    try:
+        with open(STATE, "r", encoding="utf-8") as f:
+            return f.read().strip() or None
+    except FileNotFoundError:
+        return None
 
 
-def ffmpeg_cmd():
-    return [
-        "ffmpeg",
-        "-re",
+def save_position(name):
+    with open(STATE, "w", encoding="utf-8") as f:
+        f.write(name)
+
+
+def ffmpeg_cmd(audio_path):
+    cmd = [
+        "ffmpeg", "-re",
         "-loop", "1", "-framerate", "2", "-i", IMAGE_PATH,
-        "-stream_loop", "-1", "-f", "concat", "-safe", "0", "-i", PLAYLIST,
+        "-i", audio_path,
         "-map", "0:v", "-map", "1:a",
         "-c:v", "libx264", "-preset", "veryfast", "-tune", "stillimage",
         "-pix_fmt", "yuv420p", "-b:v", "2500k", "-maxrate", "2500k",
         "-bufsize", "6000k", "-r", "30", "-g", "60",
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100",
-        "-f", "tee", build_destinations(),
+        "-shortest",
+        "-f", "flv", RTMP_YT,
     ]
+    if RTMP_TT:
+        cmd += ["-f", "flv", RTMP_TT]
+    return cmd
 
 
 def main():
     if not os.path.exists(IMAGE_PATH):
         print(f"❌ Image '{IMAGE_PATH}' introuvable. Mets ta couverture (1920x1080) ici.")
         sys.exit(1)
+
+    print("📡 Destinations :", "YouTube + TikTok" if RTMP_TT else "YouTube")
+    last_played = load_position()
+    if last_played:
+        print(f"↩️  Reprise après : {last_played}")
+
     while True:
-        build_playlist()
-        print("🔴 LIVE 24/7 en cours… (Ctrl+C pour arrêter)")
-        subprocess.run(ffmpeg_cmd())
-        print("⚠️  Flux interrompu — redémarrage dans 5s…")
-        time.sleep(5)
+        files = list_audio()
+        if not files:
+            print(f"❌ Aucun audio dans '{AUDIO_DIR}'. Lance d'abord : python download.py")
+            sys.exit(1)
+
+        # Reprendre juste APRÈS le dernier fichier joué
+        start = 0
+        if last_played in files:
+            start = files.index(last_played) + 1
+            if start >= len(files):
+                start = 0  # tout joué → on recommence le cycle
+
+        print(f"🔴 LIVE 24/7 — {len(files)} xassida (départ piste {start + 1})")
+
+        i = start
+        while i < len(files):
+            name = files[i]
+            path = os.path.join(AUDIO_DIR, name)
+            print(f"▶️  [{i + 1}/{len(files)}] {name}")
+            subprocess.run(ffmpeg_cmd(path))
+            save_position(name)
+            last_played = name
+            i += 1
+
+        # Cycle terminé : on recharge (nouveaux sons) et on repart du début
+        last_played = None
+        save_position("")
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n⏹️  Live arrêté.")
+        print("\n⏹️  Live arrêté. (Reprise possible au même endroit au prochain lancement.)")
