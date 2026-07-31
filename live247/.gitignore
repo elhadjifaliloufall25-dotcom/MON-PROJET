@@ -1,0 +1,10 @@
+# Secrets & fichiers locaux — ne jamais committer
+config.py
+*.session
+*.session-journal
+audio/
+cover.jpg
+playlist.txt
+state.txt
+__pycache__/
+*.pyc
